@@ -1,13 +1,12 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template
+import pandas
 
 app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        name = request.form['username']
-        return f"Hello {name}. POST request received"
-    return render_template('home.html')
-
+def show_info():
+    dataFrame = pandas.read_csv("test.csv") 
+    htmlFrame = dataFrame.to_html()
+    return render_template("home.html", table=htmlFrame)
 if __name__ == '__main__':
     app.run(debug=True)
