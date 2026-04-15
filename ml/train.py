@@ -4,6 +4,8 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+import subprocess
+import sys
 
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
@@ -33,6 +35,52 @@ MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
 DATA_FILE = DATA_DIR / "AIML Dataset.csv"
 TARGET_COLUMN = "isFraud"
+
+KAGGLE_DATASET_URL = "https://www.kaggle.com/api/v1/datasets/download/amanalisiddiqui/fraud-detection-dataset"
+
+
+def ensure_dataset():
+    if DATA_FILE.exists():
+        return True
+
+    print("Dataset not found. Downloading...")
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    zip_path = DATA_DIR / "dataset.zip"
+
+    try:
+        result = subprocess.run(
+            ["curl", "-L", "-o", str(zip_path), KAGGLE_DATASET_URL],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            print("Download failed. Please download manually from:")
+            print(
+                "https://www.kaggle.com/datasets/amanalisiddiqui/fraud-detection-dataset"
+            )
+            print(f"Extract the CSV to: {DATA_FILE}")
+            return False
+
+        print("Extracting dataset...")
+        subprocess.run(
+            ["unzip", "-o", str(zip_path), "-d", str(DATA_DIR)], capture_output=True
+        )
+        zip_path.unlink()
+
+        if DATA_FILE.exists():
+            print(f"Dataset downloaded to: {DATA_FILE}")
+            return True
+        else:
+            print("Extraction failed. Please download manually.")
+            return False
+
+    except Exception as e:
+        print(f"Error downloading dataset: {e}")
+        print("Please download manually from:")
+        print("https://www.kaggle.com/datasets/amanalisiddiqui/fraud-detection-dataset")
+        return False
 
 
 def build_preprocessor() -> ColumnTransformer:
@@ -118,8 +166,8 @@ def evaluate_at_threshold(name, y_true, probabilities, threshold: float) -> dict
 
 
 def load_dataset() -> pd.DataFrame:
-    if not DATA_FILE.exists():
-        raise FileNotFoundError(f"Dataset not found: {DATA_FILE}")
+    if not ensure_dataset():
+        sys.exit(1)
 
     df = pd.read_csv(DATA_FILE)
 
@@ -133,10 +181,14 @@ def main():
     print(f"Loading dataset from: {DATA_FILE}")
     df = load_dataset()
 
-    drop_columns = [col for col in ["nameOrig", "nameDest", "isFlaggedFraud"] if col in df.columns]
+    drop_columns = [
+        col for col in ["nameOrig", "nameDest", "isFlaggedFraud"] if col in df.columns
+    ]
 
     if len(df) > 1_000_000:
-        print("Dataset is large. Using a stratified sample of 1,000,000 rows for Alpha checkpoint iteration.")
+        print(
+            "Dataset is large. Using a stratified sample of 1,000,000 rows for Alpha checkpoint iteration."
+        )
 
         sample_size = 1_000_000
         if sample_size < len(df):
