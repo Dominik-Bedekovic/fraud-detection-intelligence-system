@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
+sqlalchemy
+psycopg[binary]
 pandas
 numpy
-scikit-learn
 joblib
+scikit-learn
 python-dotenv

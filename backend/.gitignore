@@ -1,4 +1,9 @@
-__pycache__/  
-*.pyc  
-.venv/  
+pycache/
+app/pycache/
+*.pyc
+*.pyo
+.pyd
+
 .env
+
+model/.tmp
