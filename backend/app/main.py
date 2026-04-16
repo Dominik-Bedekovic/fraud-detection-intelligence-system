@@ -1,6 +1,7 @@
+import io
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, File, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import pandas as pd
@@ -55,16 +56,29 @@ async def home(request: Request):
 
 
 @app.post("/")
+
 async def predict(
     request: Request,
-    step: int = Form(...),
-    type: str = Form(...),
-    amount: float = Form(...),
-    oldBalanceOrig: float = Form(...),
-    newBalanceOrig: float = Form(...),
-    oldBalanceDest: float = Form(...),
-    newBalanceDest: float = Form(...),
-):
+    file: UploadFile = File(None), 
+
+    step: int = Form(None),
+    type: str = Form(None),
+    amount: float = Form(None),
+    oldBalanceOrig: float = Form(None),
+    newBalanceOrig: float = Form(None),
+    oldBalanceDest: float = Form(None),
+    newBalanceDest: float = Form(None),
+    ):
+
+    if file:
+        contents = await file.read()
+        df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+
+        probability = model_loader.pipeline.predict_proba(df)[:, 1]
+
+        return f"Fraud probability: {probability[0]}"
+        
+    
     transaction_data = {
         "step": step,
         "type": type,
@@ -77,7 +91,6 @@ async def predict(
 
     result = prediction_service.predict_fraud(transaction_data)
     return f"Fraud probability: {result['fraud_probability']}%"
-
 
 if __name__ == "__main__":
     import uvicorn
