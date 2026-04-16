@@ -6,7 +6,7 @@
     <title>Document</title>
   </head>
   <body>
-    <form method="POST">
+    <form method="post">
       <label for="step">Step</label>
       <input type="text" name="step" value="1" />
       <br />
@@ -28,6 +28,12 @@
       <label for="newBalanceDest">New Balance Destination</label>
       <input type="text" name="newBalanceDest" value="0" />
       <br />
+      <input type="submit" value="Submit" />
+    </form>
+
+    <form method="post" enctype="multipart/form-data">
+      <label for="file">Choose a file to upload</label>
+      <input type="file" name="file" id="file" accept=".csv" />
       <input type="submit" value="Submit" />
     </form>
   </body>
