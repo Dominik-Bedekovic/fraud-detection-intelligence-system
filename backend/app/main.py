@@ -1,38 +1,62 @@
 import io
 from pathlib import Path
-
-from fastapi import FastAPI, Request, Form, File, UploadFile
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import pandas as pd
 import joblib
-
+from pydantic import BaseModel
 
 app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent.parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "templates"))
+PROJECT_ROOT = BASE_DIR.parent
+import sys
+sys.path.append(str(PROJECT_ROOT))
 
+# pydantic validates incoming JSON and returns 422 on invalid input
+class Transaction(BaseModel):
+    step: int
+    type: str
+    amount: float
+    oldbalanceOrg: float
+    newbalanceOrig: float
+    oldbalanceDest: float
+    newbalanceDest: float
 
+# loads trained fraud model once during application startup
 class ModelLoader:
     def __init__(self, model_path: str):
         self.model_path = model_path
         self.pipeline = None
+        self.threshold = 0.1
         self.load_model()
 
     def load_model(self):
         try:
             bundle = joblib.load(self.model_path)
-            self.pipeline = bundle["pipeline"]
+            # dict bundle with pipeline+threshold
+            if isinstance(bundle, dict):  
+                self.pipeline = bundle["pipeline"]
+                self.threshold = bundle["threshold"]
+            else:
+                self.pipeline = bundle
         except Exception as e:
             print(f"error loading model: {e}")
 
+    # predict fraud probability for one transaction
     def predict(self, data: dict) -> float:
-        if not self.pipeline:
+        if self.pipeline is None:
             raise ValueError("model not loaded")
         df = pd.DataFrame([data])
         return self.pipeline.predict_proba(df)[0][1]
 
+    # predict fraud probability for a batch of transactions (DataFrame)
+    def predict_batch(self, df: pd.DataFrame):
+        if self.pipeline is None:
+            raise ValueError("model not loaded")
+        return self.pipeline.predict_proba(df)[:, 1]
 
+# converts probability into fraud/not fraud
 class PredictionService:
     def __init__(self, loader: ModelLoader):
         self.loader = loader
@@ -41,58 +65,64 @@ class PredictionService:
         probability = self.loader.predict(transaction_data)
         return {
             "fraud_probability": round(probability * 100, 2),
-            "is_fraud": probability >= 0.5,
+            "is_fraud": probability >= self.loader.threshold,
         }
 
+    def predict_fraud_batch(self, df: pd.DataFrame) -> list:
+        probabilities = self.loader.predict_batch(df)
+        results = []
+        for prob in probabilities:
+            results.append({
+                "fraud_probability": round(prob * 100, 2),
+                "is_fraud": bool(prob >= self.loader.threshold)
+            })
+        return results
 
-model_path = str(BASE_DIR / "model" / "fraud_pipeline.joblib")
+model_path = BASE_DIR / "model" / "fraud_pipeline.joblib"
 model_loader = ModelLoader(model_path)
 prediction_service = PredictionService(model_loader)
 
+# single prediction endpoint, accepts validated JSON and returns JSON response
+@app.get("/")
+async def serve_frontend():
+    return FileResponse(PROJECT_ROOT / "frontend" / "index.html")
 
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
+@app.post("/predict")
+def predict(tx: Transaction):
+    transaction_data = tx.dict() # converts pydantic object to python dictionary
+    result = prediction_service.predict_fraud(transaction_data)
 
-
-@app.post("/")
-
-async def predict(
-    request: Request,
-    file: UploadFile = File(None), 
-
-    step: int = Form(None),
-    type: str = Form(None),
-    amount: float = Form(None),
-    oldBalanceOrig: float = Form(None),
-    newBalanceOrig: float = Form(None),
-    oldBalanceDest: float = Form(None),
-    newBalanceDest: float = Form(None),
-    ):
-
-    if file:
-        contents = await file.read()
-        df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
-
-        probability = model_loader.pipeline.predict_proba(df)[:, 1]
-
-        return f"Fraud probability: {probability[0]}"
-        
-    
-    transaction_data = {
-        "step": step,
-        "type": type,
-        "amount": amount,
-        "oldbalanceOrg": oldBalanceOrig,
-        "newbalanceOrig": newBalanceOrig,
-        "oldbalanceDest": oldBalanceDest,
-        "newbalanceDest": newBalanceDest,
+    return {
+        "prediction": 1 if result["is_fraud"] else 0,
+        "label": "fraud" if result["is_fraud"] else "not_fraud",
+        "probability": result["fraud_probability"]
     }
 
-    result = prediction_service.predict_fraud(transaction_data)
-    return f"Fraud probability: {result['fraud_probability']}%"
+# batch prediction endpoint, accepts CSV file and returns JSON list of predictions
+@app.post("/predict/batch")
+async def predict_batch(file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
+    
+    contents = await file.read()
+    try:
+        df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error reading CSV file: {e}")
+    
+    results = prediction_service.predict_fraud_batch(df)
+    
+    formatted_results = [
+        {
+            "prediction": 1 if res["is_fraud"] else 0,
+            "label": "fraud" if res["is_fraud"] else "not_fraud",
+            "probability": res["fraud_probability"]
+        }
+        for res in results
+    ]
+    return {"results": formatted_results}
 
 if __name__ == "__main__":
     import uvicorn
-
+    # Updated to python -m uvicorn based on the issue discussion
     uvicorn.run(app, host="127.0.0.1", port=8000)
