@@ -2,7 +2,7 @@
 
 Thank you for your interest in being a part of this project!
 
-Please follow the instructions below so that we can maintain a clean workflow.
+Please follow the instructions below and refer to the main `README` file so that we can maintain a clean workflow.
 
 ---
 
