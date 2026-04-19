@@ -67,7 +67,7 @@ http://127.0.0.1:8000
 ## Project Planning
 
 ### Work Breakdown Structure
-![WBS](docs/wbs-diagram.png)
+![WBS](docs/wbs-diagram.drawio.svg)
 
 ### PERT Diagram
 ![PERT](docs/pert-diagram.png)
