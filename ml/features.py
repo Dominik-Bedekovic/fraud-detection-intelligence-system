@@ -43,6 +43,8 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
     def transform(self, X):
         df = X.copy()
 
+        # Ensure the model always receives the minimum required schema,
+        # even if some fields are missing in incoming data.
         for column in RAW_REQUIRED_COLUMNS:
             if column not in df.columns:
                 if column == "type":
@@ -50,6 +52,7 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
                 else:
                     df[column] = 0
 
+        # Normalize transaction type values so training and inference stay consistent.
         df["type"] = df["type"].astype(str).fillna("UNKNOWN").str.upper()
 
         numeric_columns = [
@@ -61,9 +64,12 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
             "newbalanceDest",
         ]
 
+        # Convert raw numeric inputs safely and let invalid values fall back to NaN first.
         for column in numeric_columns:
             df[column] = pd.to_numeric(df[column], errors="coerce")
 
+        # Clip negative values because these balance and amount fields are expected
+        # to be non-negative in this dataset domain.
         df["step"] = df["step"].fillna(0).clip(lower=0)
         df["amount"] = df["amount"].fillna(0.0).clip(lower=0.0)
         df["oldbalanceOrg"] = df["oldbalanceOrg"].fillna(0.0).clip(lower=0.0)
@@ -71,14 +77,19 @@ class FeatureSelector(BaseEstimator, TransformerMixin):
         df["oldbalanceDest"] = df["oldbalanceDest"].fillna(0.0).clip(lower=0.0)
         df["newbalanceDest"] = df["newbalanceDest"].fillna(0.0).clip(lower=0.0)
 
+        # Log scaling helps reduce the impact of very large transaction amounts.
         df["amount_log"] = np.log1p(df["amount"])
 
+        # Derived balance features capture movement patterns that are often useful
+        # for distinguishing normal and fraudulent transactions.
         df["orig_balance_delta"] = df["oldbalanceOrg"] - df["newbalanceOrig"]
         df["dest_balance_delta"] = df["newbalanceDest"] - df["oldbalanceDest"]
 
         df["orig_zero_balance"] = (df["oldbalanceOrg"] == 0).astype(int)
         df["dest_zero_balance"] = (df["oldbalanceDest"] == 0).astype(int)
 
+        # Use a safe denominator to avoid division-by-zero issues while still
+        # preserving a useful relative amount signal.
         ratio_denominator = df["oldbalanceOrg"].replace(0, 1.0)
         df["amount_to_oldbalance_ratio"] = df["amount"] / ratio_denominator
         df["amount_to_oldbalance_ratio"] = np.nan_to_num(
