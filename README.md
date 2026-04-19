@@ -1,6 +1,6 @@
 # Fraud-detection-intelligence-system
 
-Website for analyzing and validating bank payments through the use of Machine Learning
+Website for analyzing and validating bank payments through the use of Machine Learning.
 
 This project demonstrates how machine learning can be used to improve financial security by detecting potentially fraudulent activities.
 
