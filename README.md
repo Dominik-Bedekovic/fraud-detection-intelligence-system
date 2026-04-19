@@ -70,7 +70,28 @@ http://127.0.0.1:8000
 ![WBS](docs/wbs-diagram.drawio.svg)
 
 ### PERT Diagram
-![PERT](docs/pert-diagram.png)
+![PERT](docs/pert-diagram.drawio.svg)
+
+### PERT Table
+
+<details>
+
+| ID | Task                              | Effort (person-hours) | Preconditions |
+|----|-----------------------------------|------------------------|---------------|
+| A  | Project Setup                     | 4                      | -             |
+| B  | Dataset & Data Documentation      | 10                     | A             |
+| C  | Machine Learning Baseline         | 24                     | B             |
+| D  | Backend v1                        | 16                     | A, C          |
+| E  | Documentation                     | 12                     | A             |
+| F  | Frontend                          | 18                     | A, D          |
+| G  | Dashboard & Flagging              | 14                     | F             |
+| H  | Database Design                   | 8                      | A             |
+| I  | User and Transaction Tables       | 6                      | H             |
+| J  | Store Prediction Results          | 5                      | C, D, I       |
+| K  | User Registration and Login       | 10                     | I, F          |
+| L  | Integration and Finalization      | 15                     | D, F, G, J, K |
+| M  | Deployment / Docker               | 8                      | L             |
+</details>
 
 ---
 
