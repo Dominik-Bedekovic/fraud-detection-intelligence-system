@@ -1,0 +1,179 @@
+:root {
+  --bg: #f3f4f6;
+  --card: #ffffff;
+  --primary: #111827;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #000000;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
+    sans-serif;
+
+  background: var(--bg);
+  color: var(--text);
+}
+
+nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #000;
+  color: #ccc;
+  padding: 0.7rem;
+}
+
+nav ul {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  padding-left: 0;
+  text-align: center;
+}
+
+nav a {
+  color: #ccc;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+nav a:hover {
+  color: white;
+}
+
+nav li {
+  margin: 0.5rem 0;
+}
+
+.container {
+  padding: 10px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  background: var(--card);
+}
+
+.card h2 {
+  display: inline-block;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: inherit;
+  background: var(--accent);
+}
+
+.card label {
+  display: inline-block;
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 400;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: var(--text);
+  background: #d1d5db;
+}
+
+button {
+  width: 100%;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: none;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2;
+  background: var(--primary);
+}
+
+button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+#singleForm {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+#batchForm {
+  display: grid;
+  gap: 15px;
+}
+
+input[type="file"] {
+  padding: 12px;
+  border: 1px dashed #d1d5db;
+  background: #f9fafb;
+}
+
+.result-box {
+  display: none;
+}
+
+.result-box.show {
+  display: block;
+  margin-top: 15px;
+  padding: 15px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  font-family: system-ui;
+}
+
+@media screen and (min-width: 768px) {
+  nav ul {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+  nav li {
+    margin: 0 1rem;
+  }
+  .card button {
+    grid-column: span 2;
+    justify-self: center;
+    width: 200px;
+  }
+  #singleForm {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+}

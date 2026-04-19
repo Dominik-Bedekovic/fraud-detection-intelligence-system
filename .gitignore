@@ -1,5 +1,5 @@
 =========================
-ROOT / GENERAL
+#ROOT / GENERAL
 =========================
 .env
 .env.*
@@ -31,7 +31,7 @@ Thumbs.db
 .swo
 
 =========================
-BACKEND / ML
+#BACKEND / ML
 =========================
 backend/pycache/
 backend/app/pycache/
@@ -39,17 +39,17 @@ backend/model/.tmp
 ml/pycache/
 
 =========================
-ML
+#ML
 =========================
 ml/pycache/
 
 =========================
-DATA
+#DATA
 =========================
 data/*.csv
 
 =========================
-FRONTEND
+#FRONTEND
 =========================
 frontend/node_modules/
 frontend/dist/

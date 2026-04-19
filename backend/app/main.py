@@ -12,10 +12,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 import sys
 sys.path.append(str(PROJECT_ROOT))
+app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "frontend"), name="static")
 
 # pydantic validates incoming JSON and returns 422 on invalid input
 class Transaction(BaseModel):
-    step: int
     type: str
     amount: float
     oldbalanceOrg: float
@@ -87,9 +87,12 @@ prediction_service = PredictionService(model_loader)
 async def serve_frontend():
     return FileResponse(PROJECT_ROOT / "frontend" / "index.html")
 
+
+
 @app.post("/predict")
 def predict(tx: Transaction):
     transaction_data = tx.dict() # converts pydantic object to python dictionary
+    transaction_data["step"] = 1
     result = prediction_service.predict_fraud(transaction_data)
 
     return {
