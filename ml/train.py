@@ -36,6 +36,7 @@ TARGET_COLUMN = "isFraud"
 
 
 def build_preprocessor() -> ColumnTransformer:
+    # Numeric features are imputed and scaled before model training.
     numeric_transformer = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="median")),
@@ -43,6 +44,8 @@ def build_preprocessor() -> ColumnTransformer:
         ]
     )
 
+    # Categorical features are imputed and one-hot encoded so unseen values
+    # at inference time do not break the pipeline.
     categorical_transformer = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
@@ -59,6 +62,8 @@ def build_preprocessor() -> ColumnTransformer:
 
 
 def build_pipeline(classifier) -> Pipeline:
+    # The pipeline keeps feature engineering, preprocessing, and classification
+    # together so training and inference use the exact same transformations.
     return Pipeline(
         steps=[
             ("feature_selector", FeatureSelector()),
@@ -69,6 +74,8 @@ def build_pipeline(classifier) -> Pipeline:
 
 
 def choose_threshold(y_true, probabilities) -> tuple[float, float]:
+    # The decision threshold is selected from the validation set instead of
+    # relying on the default 0.50, which is often suboptimal for imbalanced data.
     precision, recall, thresholds = precision_recall_curve(y_true, probabilities)
 
     best_threshold = 0.50
@@ -84,11 +91,14 @@ def choose_threshold(y_true, probabilities) -> tuple[float, float]:
             best_f1 = f1
             best_threshold = float(threshold)
 
+    # Clamp the threshold to a practical range to avoid extreme values.
     best_threshold = max(0.05, min(best_threshold, 0.80))
     return best_threshold, best_f1
 
 
 def evaluate_at_threshold(name, y_true, probabilities, threshold: float) -> dict:
+    # Final test evaluation is done with the chosen validation threshold to
+    # reflect the actual decision rule used by the backend.
     y_pred = (probabilities >= threshold).astype(int)
 
     print(f"\n{name} - threshold: {threshold:.4f}")
@@ -133,6 +143,7 @@ def main():
     print(f"Loading dataset from: {DATA_FILE}")
     df = load_dataset()
 
+    # Remove columns that are not used as model inputs, if present in the dataset.
     drop_columns = [col for col in ["nameOrig", "nameDest", "isFlaggedFraud"] if col in df.columns]
 
     if len(df) > 1_000_000:
@@ -140,6 +151,7 @@ def main():
 
         sample_size = 1_000_000
         if sample_size < len(df):
+            # Downsampling keeps Alpha checkpoint training practical while preserving class balance.
             df, _ = train_test_split(
                 df,
                 train_size=sample_size,
@@ -152,6 +164,8 @@ def main():
     X = df.drop(columns=[TARGET_COLUMN] + drop_columns)
     y = df[TARGET_COLUMN].astype(int)
 
+    # Split into train / validation / test to keep model selection separate
+    # from the final unbiased evaluation.
     X_train, X_temp, y_train, y_temp = train_test_split(
         X,
         y,
@@ -168,6 +182,7 @@ def main():
         random_state=42,
     )
 
+    # A small baseline model set is enough for Alpha checkpoint comparison.
     candidate_models = {
         "logistic_regression": LogisticRegression(
             max_iter=2000,
@@ -213,6 +228,8 @@ def main():
         print(f"Validation best F1: {best_f1:.6f}")
         print(f"Chosen threshold  : {threshold:.6f}")
 
+        # PR AUC is the primary selection metric because fraud detection is
+        # heavily imbalanced and ROC AUC can look overly optimistic.
         if pr_auc > best_score:
             best_score = pr_auc
             best_name = name
@@ -236,6 +253,7 @@ def main():
         best_threshold,
     )
 
+    # Store both the trained pipeline and metadata needed by the backend.
     model_bundle = {
         "pipeline": best_pipeline,
         "threshold": float(best_threshold),

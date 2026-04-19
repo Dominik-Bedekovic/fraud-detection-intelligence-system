@@ -12,6 +12,8 @@ def main():
     if not MODEL_PATH.exists():
         raise FileNotFoundError(f"Model file not found: {MODEL_PATH}")
 
+    # Load the exported training bundle to inspect the selected model
+    # and the metrics stored during training.
     bundle = joblib.load(MODEL_PATH)
 
     print("Loaded model bundle")
