@@ -42,6 +42,16 @@ python -m uvicorn backend.app.main:app --reload
 http://127.0.0.1:8000
 ```
 
+5. Database:
+
+The project uses PostgreSQL for storing users, transactions, and prediction results.
+
+For local development, start the database with:
+
+```
+docker compose up -d
+```
+
 ---
 
 ## Project structure
