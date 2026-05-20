@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fdis-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fdis
+      POSTGRES_USER: fdis_user
+      POSTGRES_PASSWORD: fdis_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - fdis_postgres_data:/var/lib/postgresql/data
+      - ./docs/database-schema.sql:/docker-entrypoint-initdb.d/01-database-schema.sql
+
+volumes:
+  fdis_postgres_data:
