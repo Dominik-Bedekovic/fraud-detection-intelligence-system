@@ -1,11 +1,14 @@
 import io
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import pandas as pd
 import joblib
 from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from backend.app.database import get_db
 
 app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -86,6 +89,12 @@ prediction_service = PredictionService(model_loader)
 @app.get("/")
 async def serve_frontend():
     return FileResponse(PROJECT_ROOT / "frontend" / "index.html")
+
+
+@app.get("/db/health")
+def database_health(db: Session = Depends(get_db)):
+    db.execute(text("SELECT 1"))
+    return {"database": "connected"}
 
 
 
