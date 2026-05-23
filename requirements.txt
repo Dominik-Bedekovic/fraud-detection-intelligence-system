@@ -8,3 +8,5 @@ scikit-learn
 python-dotenv
 alembic
 python-multipart
+xgboost
+lightgbm

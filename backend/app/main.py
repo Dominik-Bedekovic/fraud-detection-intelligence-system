@@ -51,7 +51,7 @@ class ModelLoader:
         if self.pipeline is None:
             raise ValueError("model not loaded")
         df = pd.DataFrame([data])
-        return self.pipeline.predict_proba(df)[0][1]
+        return float(self.pipeline.predict_proba(df)[0][1])
 
     # predict fraud probability for a batch of transactions (DataFrame)
     def predict_batch(self, df: pd.DataFrame):
@@ -67,8 +67,8 @@ class PredictionService:
     def predict_fraud(self, transaction_data: dict) -> dict:
         probability = self.loader.predict(transaction_data)
         return {
-            "fraud_probability": round(probability * 100, 2),
-            "is_fraud": probability >= self.loader.threshold,
+            "fraud_probability": round(float(probability) * 100, 2),
+            "is_fraud": bool(probability >= self.loader.threshold),
         }
 
     def predict_fraud_batch(self, df: pd.DataFrame) -> list:
@@ -76,7 +76,7 @@ class PredictionService:
         results = []
         for prob in probabilities:
             results.append({
-                "fraud_probability": round(prob * 100, 2),
+                "fraud_probability": round(float(prob) * 100, 2),
                 "is_fraud": bool(prob >= self.loader.threshold)
             })
         return results

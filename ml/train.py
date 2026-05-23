@@ -8,9 +8,9 @@ import subprocess
 import sys
 
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
+from lightgbm import LGBMClassifier
+from xgboost import XGBClassifier
 from sklearn.metrics import (
     average_precision_score,
     classification_report,
@@ -234,24 +234,18 @@ def main():
 
     # A small baseline model set is enough for Alpha checkpoint comparison.
     candidate_models = {
-        "logistic_regression": LogisticRegression(
-            max_iter=2000,
-            class_weight="balanced",
-            random_state=42,
-        ),
-        "random_forest": RandomForestClassifier(
-            n_estimators=200,
-            random_state=42,
-            n_jobs=-1,
-            class_weight="balanced_subsample",
-            min_samples_leaf=2,
-        ),
-        "extra_trees": ExtraTreesClassifier(
+        "xgboost": XGBClassifier(
             n_estimators=300,
             random_state=42,
             n_jobs=-1,
-            class_weight="balanced_subsample",
-            min_samples_leaf=2,
+            scale_pos_weight=10,
+            eval_metric="aucpr",
+        ),
+        "lightgbm": LGBMClassifier(
+            n_estimators=300,
+            random_state=42,
+            n_jobs=-1,
+            is_unbalance=True,
         ),
     }
 
