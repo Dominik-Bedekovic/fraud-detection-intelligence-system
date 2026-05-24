@@ -164,6 +164,23 @@ async def predict_batch(file: UploadFile = File(...)):
     ]
     return {"results": formatted_results}
 
+#Pass the transaction history values to the HTML page from the database
+@app.get("/transactions")
+def get_transactions(db: Session = Depends(get_db)):
+    transactions = db.query(TransactionModel).all()
+
+    result = []
+    for t in transactions:
+        result.append({
+            "id": t.id,
+            "type": t.type,
+            "amount": t.amount,
+            "prediction": t.prediction_result.prediction if t.prediction_result else None,
+            "probability": t.prediction_result.probability if t.prediction_result else None,
+        })
+
+    return result
+
 if __name__ == "__main__":
     import uvicorn
     # Updated to python -m uvicorn based on the issue discussion
