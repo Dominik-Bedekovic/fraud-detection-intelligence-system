@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="stylesheet" href="/static/css/normalize.css" />
+    <title>Transaction history</title>
+  </head>
+  <body>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Prediction</th>
+          <th>Probability</th>
+        </tr>
+      </thead>
+      <tbody id="table"></tbody>
+    </table>
+
+    <script>
+      async function loadHistory() {
+        const res = await fetch("/transactions");
+        const data = await res.json();
+
+        const table = document.getElementById("table");
+
+        table.innerHTML = data
+          .map(
+            (t) => `
+    <tr>
+      <td>${t.id}</td>
+      <td>${t.type}</td>
+      <td>${t.amount}</td>
+      <td>${t.prediction}</td>
+      <td>${t.probability}</td>
+    </tr>
+  `,
+          )
+          .join("");
+      }
+
+      loadHistory();
+    </script>
+  </body>
+</html>
