@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
+from backend.app.models import Transaction as TransactionModel
+from backend.app.models import PredictionResult
 
 app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -99,15 +101,43 @@ def database_health(db: Session = Depends(get_db)):
 
 
 @app.post("/predict")
-def predict(tx: Transaction):
+def predict(tx: Transaction, db: Session = Depends(get_db)):
     transaction_data = tx.dict() # converts pydantic object to python dictionary
     transaction_data["step"] = 1
     result = prediction_service.predict_fraud(transaction_data)
 
+    #save input to database
+    db_tx = TransactionModel (
+        type = tx.type,
+        amount = tx.amount,
+        oldbalanceOrg = tx.oldbalanceOrg,
+        newbalanceOrig = tx.newbalanceOrig,
+        oldbalanceDest = tx.oldbalanceDest,
+        newbalanceDest = tx.newbalanceDest,
+        step = 1,
+        source = "single"
+    )
+
+    db.add(db_tx)
+    db.commit()
+    db.refresh(db_tx)
+
+    #save prediction to database
+    db_prediction = PredictionResult (
+        transaction_id = db_tx.id,
+        prediction = 1 if result["is_fraud"] else 0,
+        label = "fraud" if result["is_fraud"] else "not_fraud",
+        probability = result["fraud_probability"] / 100 
+    )
+
+    db.add(db_prediction)
+    db.commit()
+    db.refresh(db_prediction)
+
     return {
-        "prediction": 1 if result["is_fraud"] else 0,
-        "label": "fraud" if result["is_fraud"] else "not_fraud",
-        "probability": result["fraud_probability"]
+        "prediction": db_prediction.prediction,
+        "label": db_prediction.label,
+        "probability": db_prediction.probability * 100
     }
 
 # batch prediction endpoint, accepts CSV file and returns JSON list of predictions
