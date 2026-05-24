@@ -111,6 +111,7 @@ def predict(tx: Transaction, db: Session = Depends(get_db)):
 
     # save transaction to db (user_id is null for now since auth isnt ready)
     db_tx = db_models.Transaction(
+        #user_id=
         type=tx.type,
         amount=tx.amount,
         oldbalanceOrg=tx.oldbalanceOrg,
