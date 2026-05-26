@@ -10,3 +10,5 @@ alembic
 python-multipart
 xgboost
 lightgbm
+pytest
+httpx
