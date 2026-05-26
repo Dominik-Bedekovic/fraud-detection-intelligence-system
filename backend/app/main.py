@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.auth import router,get_current_user
 from backend.app.models import User
+from backend.app import models as db_models
 from typing import Annotated
 
 app = FastAPI()
@@ -44,6 +45,8 @@ class ModelLoader:
         self.model_path = model_path
         self.pipeline = None
         self.threshold = 0.1
+        self.model_name = None
+        self.model_version = None
         self.load_model()
 
     def load_model(self):
@@ -53,6 +56,8 @@ class ModelLoader:
             if isinstance(bundle, dict):  
                 self.pipeline = bundle["pipeline"]
                 self.threshold = bundle["threshold"]
+                self.model_name = bundle.get("model_name")
+                self.model_version = bundle.get("features_version")
             else:
                 self.pipeline = bundle
         except Exception as e:
@@ -110,17 +115,37 @@ async def user(user: user_dependency, db: db_dependency):
     return{"user": user}
 
 
-#who am i endpoint, returns object from DB
+#who am i endpoint, returns object from DB,also lists user transactions
 @app.get("/auth/me")
-def me(user: dict = Depends(get_current_user),
-     db: Session = Depends(get_db)
+def me(
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    db_user = db.query(User).filter(User.id == user["user_id"]).first()
+    db_user = db.query(User).filter(
+        User.id == user["user_id"]
+    ).first()
 
     if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
 
-    return db_user
+    return {
+        "id": db_user.id,
+        "email": db_user.email,
+        "full_name": db_user.full_name,
+        "role_id": db_user.role_id,
+        "transactions": [
+            {
+                "id": tx.id,
+                "type": tx.type,
+                "amount": tx.amount,
+                "created_at": tx.created_at
+            }
+            for tx in db_user.transactions
+        ]
+    }
 
 #db health check
 @app.get("/db/health")
@@ -142,11 +167,41 @@ def get_roles(db: Session = Depends(get_db)):
 @app.post("/predict")
 def predict(
     tx: Transaction,
+    db: Session = Depends(get_db),
     user=Depends(get_current_user)
     ):
-    transaction_data = tx.dict() # converts pydantic object to python dictionary
+    transaction_data = tx.model_dump() # converts pydantic object to python dictionary
     transaction_data["step"] = 1
     result = prediction_service.predict_fraud(transaction_data)
+
+    # save transaction linked to atuhenticated user to db
+    db_tx = db_models.Transaction(
+        user_id=user["user_id"],
+        type=tx.type,
+        amount=tx.amount,
+        oldbalanceOrg=tx.oldbalanceOrg,
+        newbalanceOrig=tx.newbalanceOrig,
+        oldbalanceDest=tx.oldbalanceDest,
+        newbalanceDest=tx.newbalanceDest,
+        step=1,
+        source="single"
+    )
+    db.add(db_tx)
+    db.commit()
+    db.refresh(db_tx)
+
+    # save the prediction result too
+    db_pred = db_models.PredictionResult(
+        transaction_id=db_tx.id,
+        prediction=1 if result["is_fraud"] else 0,
+        label="fraud" if result["is_fraud"] else "not_fraud",
+        probability=result["fraud_probability"],
+        model_name=model_loader.model_name,
+        model_version=model_loader.model_version,
+        threshold=model_loader.threshold
+    )
+    db.add(db_pred)
+    db.commit()
 
     return {
         "prediction": 1 if result["is_fraud"] else 0,
@@ -158,6 +213,7 @@ def predict(
 @app.post("/predict/batch")
 async def predict_batch(
     file: UploadFile = File(...),
+    db: Session= Depends(get_db),
     user=Depends(get_current_user)
 ):
     if not file.filename.endswith('.csv'):
@@ -171,14 +227,46 @@ async def predict_batch(
     
     results = prediction_service.predict_fraud_batch(df)
     
-    formatted_results = [
-        {
+    db_transactions = []
+    for index, row in df.iterrows():
+        db_tx = db_models.Transaction(
+            user_id=user["user_id"],
+            type=str(row.get("type", "UNKNOWN")),
+            amount=float(row.get("amount", 0.0)),
+            oldbalanceOrg=float(row.get("oldbalanceOrg", 0.0)),
+            newbalanceOrig=float(row.get("newbalanceOrig", 0.0)),
+            oldbalanceDest=float(row.get("oldbalanceDest", 0.0)),
+            newbalanceDest=float(row.get("newbalanceDest", 0.0)),
+            step=int(row.get("step", 1)),
+            source="batch"
+        )
+        db.add(db_tx)
+        db_transactions.append(db_tx)
+
+    db.commit()
+
+    formatted_results = []
+    # loop through the predictions and link them to the transactions we just saved
+    for i, res in enumerate(results):
+        db_pred = db_models.PredictionResult(
+            transaction_id=db_transactions[i].id,
+            prediction=1 if res["is_fraud"] else 0,
+            label="fraud" if res["is_fraud"] else "not_fraud",
+            probability=res["fraud_probability"],
+            model_name=model_loader.model_name,
+            model_version=model_loader.model_version,
+            threshold=model_loader.threshold
+        )
+        db.add(db_pred)
+
+        formatted_results.append({
             "prediction": 1 if res["is_fraud"] else 0,
             "label": "fraud" if res["is_fraud"] else "not_fraud",
             "probability": res["fraud_probability"]
-        }
-        for res in results
-    ]
+        })
+
+    db.commit()
+
     return {"results": formatted_results}
 
 if __name__ == "__main__":
