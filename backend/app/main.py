@@ -1,6 +1,7 @@
 import io
 from pathlib import Path
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
+from fastapi import status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import pandas as pd
@@ -9,14 +10,25 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
+from backend.app.auth import router,get_current_user
+from backend.app.models import User
+from typing import Annotated
 
 app = FastAPI()
+
+#mount /auth endpoints
+app.include_router(router)
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 import sys
 sys.path.append(str(PROJECT_ROOT))
 app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "frontend"), name="static")
 
+db_dependency = Annotated[Session, Depends(get_db)]
+user_dependency = Annotated[dict, Depends(get_current_user)]
+
+#request schema
 # pydantic validates incoming JSON and returns 422 on invalid input
 class Transaction(BaseModel):
     type: str
@@ -85,21 +97,53 @@ model_path = BASE_DIR / "model" / "fraud_pipeline.joblib"
 model_loader = ModelLoader(model_path)
 prediction_service = PredictionService(model_loader)
 
-# single prediction endpoint, accepts validated JSON and returns JSON response
+#frontend route
 @app.get("/")
 async def serve_frontend():
     return FileResponse(PROJECT_ROOT / "frontend" / "index.html")
 
+#auth test endpoint
+@app.get("/users", status_code=status.HTTP_200_OK)
+async def user(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(status_code=401, detail= 'Authentication failed')
+    return{"user": user}
 
+
+#who am i endpoint, returns object from DB
+@app.get("/auth/me")
+def me(user: dict = Depends(get_current_user),
+     db: Session = Depends(get_db)
+):
+    db_user = db.query(User).filter(User.id == user["user_id"]).first()
+
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return db_user
+
+#db health check
 @app.get("/db/health")
 def database_health(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1"))
     return {"database": "connected"}
 
+#roles debug endpoint, should remove before merge
+@app.get("/roles")
+def get_roles(db: Session = Depends(get_db)):
+    roles = db.execute(
+        text("SELECT * FROM roles")
+    ).fetchall()
+
+    return [dict(row._mapping) for row in roles] #remove before merge
 
 
+#single predicition endpoint
 @app.post("/predict")
-def predict(tx: Transaction):
+def predict(
+    tx: Transaction,
+    user=Depends(get_current_user)
+    ):
     transaction_data = tx.dict() # converts pydantic object to python dictionary
     transaction_data["step"] = 1
     result = prediction_service.predict_fraud(transaction_data)
@@ -112,7 +156,10 @@ def predict(tx: Transaction):
 
 # batch prediction endpoint, accepts CSV file and returns JSON list of predictions
 @app.post("/predict/batch")
-async def predict_batch(file: UploadFile = File(...)):
+async def predict_batch(
+    file: UploadFile = File(...),
+    user=Depends(get_current_user)
+):
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
     
