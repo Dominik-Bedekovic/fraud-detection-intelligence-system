@@ -105,7 +105,7 @@ def database_health(db: Session = Depends(get_db)):
 
 @app.post("/predict")
 def predict(tx: Transaction, db: Session = Depends(get_db)):
-    transaction_data = tx.dict() # converts pydantic object to python dictionary
+    transaction_data = tx.model_dump() # converts pydantic object to python dictionary
     transaction_data["step"] = 1
     result = prediction_service.predict_fraud(transaction_data)
 
