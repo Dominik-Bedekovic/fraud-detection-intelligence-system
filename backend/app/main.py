@@ -128,7 +128,7 @@ def predict(tx: Transaction, db: Session = Depends(get_db)):
 
 
     #save prediction to database
-    db_prediction = PredictionResult (
+    db_prediction = db_models.PredictionResult (
         transaction_id = db_tx.id,
         prediction = 1 if result["is_fraud"] else 0,
         label = "fraud" if result["is_fraud"] else "not_fraud",
@@ -205,7 +205,7 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
 #Pass the transaction history values to the HTML page from the database
 @app.get("/transactions")
 def get_transactions(db: Session = Depends(get_db)):
-    transactions = db.query(TransactionModel).all()
+    transactions = db.query(db_models.TransactionModel).all()
 
     result = []
     for t in transactions:
