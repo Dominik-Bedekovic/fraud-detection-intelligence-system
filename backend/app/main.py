@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
-from backend.app.auth import router,get_current_user
+from backend.app.auth import router,get_current_user,require_admin,require_analyst_or_admin
 from backend.app.models import User
 from backend.app import models as db_models
 from typing import Annotated
@@ -147,6 +147,27 @@ def me(
         ]
     }
 
+#lists all users, only for admins
+@app.get("/admin/users")
+def get_all_users(
+    user=Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    users = db.query(User).all()
+
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "full_name": u.full_name,
+            "role_id": u.role_id,
+            "is_active": u.is_active,
+            "is_email_verified": u.is_email_verified,
+            "created_at": u.created_at
+        }
+        for u in users
+    ]
+
 #db health check
 @app.get("/db/health")
 def database_health(db: Session = Depends(get_db)):
@@ -161,6 +182,7 @@ def get_roles(db: Session = Depends(get_db)):
     ).fetchall()
 
     return [dict(row._mapping) for row in roles] #remove before merge
+
 
 
 #single predicition endpoint

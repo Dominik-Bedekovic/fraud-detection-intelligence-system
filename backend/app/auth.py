@@ -85,6 +85,7 @@ async def login(
 	token = create_access_token(
 		user.email,
 		user.id,
+		user.role_id,
 		timedelta(minutes=20)
 	)
 
@@ -106,9 +107,9 @@ def authenticate_user(email: str, password: str, db):
 
 
 #JWT creation
-def create_access_token(email: str, user_id: int, expires_delta: timedelta):
+def create_access_token(email: str, user_id: int, role_id: int, expires_delta: timedelta):
 	#payload stored inside token
-	encode = {'sub': email, 'user_id': user_id}
+	encode = {'sub': email, 'user_id': user_id,"role_id": role_id}
 	
 	
 	expires = datetime.utcnow() + expires_delta
@@ -126,6 +127,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(oauth2_
 
         email = payload.get("sub")
         user_id = payload.get("user_id")
+        role_id = payload.get("role_id")
 
         #validate payload
         if email is None or user_id is None:
@@ -136,10 +138,27 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(oauth2_
         #reutrn authenticated user context
         return {
             "email": email,
-            "user_id": user_id
+            "user_id": user_id,
+            "role_id": role_id
         }
-
     except JWTError as e:
     	#token invalid/expired/tampered
     	print("JWT ERROR:", str(e))
     	raise HTTPException(status_code=401, detail=str(e))
+
+#admin role verification
+def require_admin(user=Depends(get_current_user)):
+    if user["role_id"] != 2:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin access required"
+        )
+    return user
+
+def require_analyst_or_admin(user=Depends(get_current_user)):
+    if user["role_id"] not in [2, 3]:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions"
+        )
+    return user
