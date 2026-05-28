@@ -23,38 +23,49 @@
 
     <div class="container">
       <h2 class="section-title">Overview</h2>
-      <!-- KPI ROW -->
       <div class="grid-3">
         <div class="kpi-card">
           <h3>Total Transactions</h3>
-          <p>1,240</p>
+          <p id="totalTransactions">0</p>
         </div>
 
         <div class="kpi-card">
           <h3>Fraud Detected</h3>
-          <p class="danger">32</p>
+          <p id="fraudDetected" class="danger">0</p>
         </div>
 
         <div class="kpi-card">
           <h3>Fraud Rate</h3>
-          <p>2.5%</p>
+          <p id="fraudRate">0%</p>
         </div>
       </div>
 
       <h2 class="section-title">Actions</h2>
-      <!-- ACTIONS -->
       <div class="grid-2">
         <div class="card">Single Transaction Form</div>
         <div class="card">Batch Upload</div>
       </div>
 
       <h2 class="section-title">Recent Transactions</h2>
-      <!-- TABLE -->
       <div class="card">
-        <table class="data-table">
-          ...
-        </table>
+        <table class="data-table"></table>
       </div>
     </div>
+
+    <script>
+      async function loadDashboardStats() {
+        const data = await res.json();
+
+        document.getElementById("totalTransactions").innerText =
+          data.total_transactions;
+
+        document.getElementById("fraudDetected").innerText =
+          data.fraud_transactions;
+
+        document.getElementById("fraudRate").innerText = data.fraud_rate + "%";
+
+        loadDashboardStats();
+      }
+    </script>
   </body>
 </html>

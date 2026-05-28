@@ -311,6 +311,30 @@ def get_transactions(db: Session = Depends(get_db)):
 
     return result
 
+@app.get("/dashboard/stats")
+def dashboardStat(db: Session = Depends(get_db)):
+    
+    transactions = db.query(db_models.Transaction).all()
+
+    fraud_transactions = 0
+
+    total_transactions = len(transactions)
+
+    for tx in transactions:
+        if tx.prediction_result and tx.prediction_result.prediction == 1:
+            fraud_transactions += 1
+
+    fraud_rate = 0
+
+    if total_transactions > 0:
+        fraud_rate = (fraud_transactions / total_transactions) * 100
+
+    return {
+        "total_transactions": total_transactions,
+        "fraud_transactions": fraud_transactions,
+        "fraud_rate": round(fraud_rate, 2)
+    }
+
 if __name__ == "__main__":
     import uvicorn
     # Updated to python -m uvicorn based on the issue discussion
