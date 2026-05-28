@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="stylesheet" href="/static/css/normalize.css" />
+    <title>Dashboard</title>
+  </head>
+  <body>
+    <div id="navbar"></div>
+
+    <script>
+      async function loadNavbar() {
+        const res = await fetch("/static/components/navbar.html");
+        const html = await res.text();
+
+        document.getElementById("navbar").innerHTML = html;
+      }
+
+      loadNavbar();
+    </script>
+
+    <div class="container">
+      <h2 class="section-title">Overview</h2>
+      <!-- KPI ROW -->
+      <div class="grid-3">
+        <div class="kpi-card">
+          <h3>Total Transactions</h3>
+          <p>1,240</p>
+        </div>
+
+        <div class="kpi-card">
+          <h3>Fraud Detected</h3>
+          <p class="danger">32</p>
+        </div>
+
+        <div class="kpi-card">
+          <h3>Fraud Rate</h3>
+          <p>2.5%</p>
+        </div>
+      </div>
+
+      <h2 class="section-title">Actions</h2>
+      <!-- ACTIONS -->
+      <div class="grid-2">
+        <div class="card">Single Transaction Form</div>
+        <div class="card">Batch Upload</div>
+      </div>
+
+      <h2 class="section-title">Recent Transactions</h2>
+      <!-- TABLE -->
+      <div class="card">
+        <table class="data-table">
+          ...
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

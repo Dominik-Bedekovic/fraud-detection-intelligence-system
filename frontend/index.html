@@ -7,14 +7,32 @@
     <title>Input Page</title>
   </head>
   <body>
-    <nav>
-      <h1>Fraud detection intelligence System</h1>
-      <ul>
-        <li><a href="#single">Single transaction</a></li>
-        <li><a href="#batch">Batch Transaction</a></li>
-        <li><a href="/static/transactions.html">Transaction History</a></li>
-      </ul>
-    </nav>
+    <div id="navbar"></div>
+
+    <script>
+      async function loadNavbar() {
+        const res = await fetch("/static/components/navbar.html");
+        const html = await res.text();
+
+        document.getElementById("navbar").innerHTML = html;
+      }
+
+      loadNavbar();
+    </script>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Prediction</th>
+          <th>Probability</th>
+        </tr>
+      </thead>
+      <tbody id="transactionsBody"></tbody>
+    </table>
+
     <div class="container">
       <div class="card" id="single">
         <h2>Single Transaction</h2>

@@ -8,42 +8,49 @@
     <title>Transaction history</title>
   </head>
   <body>
-    <table border="1">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Type</th>
-          <th>Amount</th>
-          <th>Prediction</th>
-          <th>Probability</th>
-        </tr>
-      </thead>
-      <tbody id="table"></tbody>
-    </table>
+    <div id="navbar"></div>
 
     <script>
-      async function loadHistory() {
-        const res = await fetch("/transactions");
-        const data = await res.json();
+      async function loadNavbar() {
+        const res = await fetch("/static/components/navbar.html");
+        document.getElementById("navbar").innerHTML = await res.text();
+      }
 
-        const table = document.getElementById("table");
+      loadNavbar();
+    </script>
 
-        table.innerHTML = data
-          .map(
-            (t) => `
+    <div id="tableContainer"></div>
+
+    <script>
+      async function loadTable() {
+        const res = await fetch("/static/components/table.html");
+        document.getElementById("tableContainer").innerHTML = await res.text();
+
+        loadData();
+
+        async function loadData() {
+          const res = await fetch("/transactions");
+          const data = await res.json();
+
+          const tbody = document.getElementById("transactionsBody");
+
+          tbody.innerHTML = data
+            .map(
+              (t) => `
     <tr>
       <td>${t.id}</td>
       <td>${t.type}</td>
       <td>${t.amount}</td>
-      <td>${t.prediction}</td>
-      <td>${t.probability}</td>
+      <td>${t.prediction ?? "—"}</td>
+      <td>${t.probability ?? "—"}</td>
     </tr>
   `,
-          )
-          .join("");
+            )
+            .join("");
+        }
       }
 
-      loadHistory();
+      loadTable();
     </script>
   </body>
 </html>

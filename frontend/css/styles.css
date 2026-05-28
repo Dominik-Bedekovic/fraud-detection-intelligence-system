@@ -158,6 +158,81 @@ input[type="file"] {
   font-family: system-ui;
 }
 
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  margin-top: 10px;
+}
+
+.data-table thead {
+  background: var(--primary);
+  color: white;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px 15px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.data-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.data-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.data-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.kpi-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.kpi-card h3 {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.kpi-card p {
+  font-size: 28px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.danger {
+  color: #ef4444;
+}
+
 @media screen and (min-width: 768px) {
   nav ul {
     flex-direction: row;

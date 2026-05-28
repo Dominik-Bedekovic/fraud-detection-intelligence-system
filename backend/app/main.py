@@ -205,7 +205,7 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
 #Pass the transaction history values to the HTML page from the database
 @app.get("/transactions")
 def get_transactions(db: Session = Depends(get_db)):
-    transactions = db.query(db_models.TransactionModel).all()
+    transactions = db.query(db_models.Transaction).all()
 
     result = []
     for t in transactions:
