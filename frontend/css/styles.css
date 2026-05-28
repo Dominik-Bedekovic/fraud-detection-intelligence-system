@@ -9,6 +9,7 @@
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
 }
 
 body {
@@ -22,9 +23,14 @@ body {
 
   background: var(--bg);
   color: var(--text);
+  height: 100%;
+  overflow-y: auto;
 }
 
 nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -59,8 +65,24 @@ nav li {
   padding: 10px;
 }
 
+.table-header {
+  position: sticky;
+  top: 56px;
+  z-index: 900;
+  background: var(--card);
+  padding: 10px 0;
+  margin-bottom: 10px;
+}
+
+.filter-label {
+  padding: 4px 10px;
+  margin-bottom: 6px;
+  margin-top: 6px;
+}
+
 .filter-buttons {
   display: flex;
+  width: 100%;
   border: 1px solid #111827;
   border-radius: 6px;
   overflow: hidden;
@@ -68,6 +90,8 @@ nav li {
 }
 
 .chip {
+  flex: 1;
+  text-align: center;
   padding: 6px 12px;
   border: none;
   background: white;
@@ -200,6 +224,7 @@ input[type="file"] {
 }
 
 .data-table {
+  table-layout: fixed;
   width: 100%;
   border-collapse: collapse;
   background: var(--card);
@@ -218,17 +243,7 @@ input[type="file"] {
 .data-table td {
   padding: 14px 18px;
   font-size: 14px;
-}
-
-.data-table th:nth-child(1),
-.data-table th:nth-child(2) {
   text-align: left;
-}
-
-.data-table th:nth-child(3),
-.data-table th:nth-child(4),
-.data-table th:nth-child(5) {
-  text-align: right;
 }
 
 .data-table tbody tr {
