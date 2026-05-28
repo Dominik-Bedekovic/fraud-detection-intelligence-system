@@ -1,6 +1,7 @@
 import io
 from pathlib import Path
 from fastapi import Depends, FastAPI, UploadFile, File, HTTPException
+from fastapi import status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import pandas as pd
@@ -9,15 +10,27 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
+from backend.app.auth import router,get_current_user,require_admin,require_analyst_or_admin
+from backend.app.models import User
+from backend.app import models as db_models
+from typing import Annotated
 from backend.app import models as db_models
 
 app = FastAPI()
+
+#mount /auth endpoints
+app.include_router(router)
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 import sys
 sys.path.append(str(PROJECT_ROOT))
 app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "frontend"), name="static")
 
+db_dependency = Annotated[Session, Depends(get_db)]
+user_dependency = Annotated[dict, Depends(get_current_user)]
+
+#request schema
 # pydantic validates incoming JSON and returns 422 on invalid input
 class Transaction(BaseModel):
     type: str
@@ -43,7 +56,7 @@ class ModelLoader:
             # dict bundle with pipeline+threshold
             if isinstance(bundle, dict):  
                 self.pipeline = bundle.get("pipeline")
-                self.threshold = bundle.get("threshold", 0.1)
+                self.threshold = bundle.get("threshold",0.1)
                 self.model_name = bundle.get("model_name")
                 self.model_version = bundle.get("features_version")
             else:
@@ -90,28 +103,103 @@ model_path = BASE_DIR / "model" / "fraud_pipeline.joblib"
 model_loader = ModelLoader(model_path)
 prediction_service = PredictionService(model_loader)
 
-# single prediction endpoint, accepts validated JSON and returns JSON response
+#frontend route
 @app.get("/")
 async def serve_frontend():
     return FileResponse(PROJECT_ROOT / "frontend" / "index.html")
 
+#auth test endpoint
+@app.get("/users", status_code=status.HTTP_200_OK)
+async def user(user: user_dependency, db: db_dependency):
+    if user is None:
+        raise HTTPException(status_code=401, detail= 'Authentication failed')
+    return{"user": user}
 
+
+#who am i endpoint, returns object from DB,also lists user transactions
+@app.get("/auth/me")
+def me(
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    db_user = db.query(User).filter(
+        User.id == user["user_id"]
+    ).first()
+
+    if not db_user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    return {
+        "id": db_user.id,
+        "email": db_user.email,
+        "full_name": db_user.full_name,
+        "role_id": db_user.role_id,
+        "transactions": [
+            {
+                "id": tx.id,
+                "type": tx.type,
+                "amount": tx.amount,
+                "created_at": tx.created_at
+            }
+            for tx in db_user.transactions
+        ]
+    }
+
+#lists all users, only for admins
+@app.get("/admin/users")
+def get_all_users(
+    user=Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    users = db.query(User).all()
+
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "full_name": u.full_name,
+            "role_id": u.role_id,
+            "is_active": u.is_active,
+            "is_email_verified": u.is_email_verified,
+            "created_at": u.created_at
+        }
+        for u in users
+    ]
+
+#db health check
 @app.get("/db/health")
 def database_health(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1"))
     return {"database": "connected"}
 
+#roles debug endpoint, should remove before merge
+@app.get("/roles")
+def get_roles(db: Session = Depends(get_db)):
+    roles = db.execute(
+        text("SELECT * FROM roles")
+    ).fetchall()
+
+    return [dict(row._mapping) for row in roles] #remove before merge
 
 
+
+#single predicition endpoint
 @app.post("/predict")
-def predict(tx: Transaction, db: Session = Depends(get_db)):
+def predict(
+    tx: Transaction,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+    ):
     transaction_data = tx.model_dump() # converts pydantic object to python dictionary
     transaction_data["step"] = 1
     result = prediction_service.predict_fraud(transaction_data)
 
-    # save transaction to db (user_id is null for now since auth isnt ready)
+    # save transaction linked to atuhenticated user to db
     db_tx = db_models.Transaction(
-        #user_id=
+        user_id=user["user_id"],
         type=tx.type,
         amount=tx.amount,
         oldbalanceOrg=tx.oldbalanceOrg,
@@ -148,7 +236,11 @@ def predict(tx: Transaction, db: Session = Depends(get_db)):
 
 # batch prediction endpoint, accepts CSV file and returns JSON list of predictions
 @app.post("/predict/batch")
-async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def predict_batch(
+    file: UploadFile = File(...),
+    db: Session= Depends(get_db),
+    user=Depends(get_current_user)
+):
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
     
@@ -160,10 +252,10 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
     
     results = prediction_service.predict_fraud_batch(df)
     
-    # insert all transactions first to get their IDs
     db_transactions = []
     for index, row in df.iterrows():
         db_tx = db_models.Transaction(
+            user_id=user["user_id"],
             type=str(row.get("type", "UNKNOWN")),
             amount=float(row.get("amount", 0.0)),
             oldbalanceOrg=float(row.get("oldbalanceOrg", 0.0)),
@@ -175,7 +267,7 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
         )
         db.add(db_tx)
         db_transactions.append(db_tx)
-    
+
     db.commit()
 
     formatted_results = []
@@ -191,13 +283,13 @@ async def predict_batch(file: UploadFile = File(...), db: Session = Depends(get_
             threshold=model_loader.threshold
         )
         db.add(db_pred)
-        
+
         formatted_results.append({
             "prediction": 1 if res["is_fraud"] else 0,
             "label": "fraud" if res["is_fraud"] else "not_fraud",
             "probability": res["fraud_probability"]
         })
-        
+
     db.commit()
 
     return {"results": formatted_results}
