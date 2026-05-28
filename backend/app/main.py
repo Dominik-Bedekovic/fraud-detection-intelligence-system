@@ -14,6 +14,7 @@ from backend.app.auth import router,get_current_user,require_admin,require_analy
 from backend.app.models import User
 from backend.app import models as db_models
 from typing import Annotated
+from backend.app import models as db_models
 
 app = FastAPI()
 
