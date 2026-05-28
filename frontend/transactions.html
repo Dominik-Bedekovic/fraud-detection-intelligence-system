@@ -4,53 +4,139 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/static/css/styles.css" />
-    <link rel="stylesheet" href="/static/css/normalize.css" />
-    <title>Transaction history</title>
+    <title>Transaction History</title>
   </head>
+
+  <div id="navbar"></div>
+
+  <script>
+    async function loadNavbar() {
+      const res = await fetch("/static/components/navbar.html");
+      const html = await res.text();
+
+      document.getElementById("navbar").innerHTML = html;
+    }
+
+    loadNavbar();
+  </script>
+
   <body>
-    <div id="navbar"></div>
+    <div class="page-container">
+      <div class="card">
+        <div class="filters">
+          <div class="filter-group">
+            <span class="filter-label">Type</span>
+            <div class="filter-buttons" data-filter="type">
+              <button class="chip active" data-value="">All</button>
+              <button class="chip" data-value="PAYMENT">Payment</button>
+              <button class="chip" data-value="TRANSFER">Transfer</button>
+              <button class="chip" data-value="CASH_OUT">Cash Out</button>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label">Fraud</span>
+            <div class="filter-buttons" data-filter="fraud">
+              <button class="chip active" data-value="">All</button>
+              <button class="chip" data-value="true">Fraud</button>
+              <button class="chip" data-value="false">Safe</button>
+            </div>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Prediction</th>
+              <th>Probability</th>
+            </tr>
+          </thead>
+          <tbody id="transactionsBody"></tbody>
+        </table>
+      </div>
+    </div>
 
     <script>
-      async function loadNavbar() {
-        const res = await fetch("/static/components/navbar.html");
-        document.getElementById("navbar").innerHTML = await res.text();
-      }
+      let filters = {
+        type: "",
+        fraud: "",
+      };
 
-      loadNavbar();
-    </script>
+      document.addEventListener("click", (e) => {
+        if (!e.target.classList.contains("chip")) return;
 
-    <div id="tableContainer"></div>
+        const parent = e.target.closest(".filter-buttons");
+        if (!parent) return;
 
-    <script>
-      async function loadTable() {
-        const res = await fetch("/static/components/table.html");
-        document.getElementById("tableContainer").innerHTML = await res.text();
+        const key = parent.dataset.filter;
+        const value = e.target.dataset.value;
 
-        loadData();
+        filters[key] = value;
 
-        async function loadData() {
-          const res = await fetch("/transactions");
-          const data = await res.json();
+        parent
+          .querySelectorAll(".chip")
+          .forEach((b) => b.classList.remove("active"));
 
-          const tbody = document.getElementById("transactionsBody");
+        e.target.classList.add("active");
 
-          tbody.innerHTML = data
-            .map(
-              (t) => `
-    <tr>
-      <td>${t.id}</td>
-      <td>${t.type}</td>
-      <td>${t.amount}</td>
-      <td>${t.prediction ?? "—"}</td>
-      <td>${t.probability ?? "—"}</td>
-    </tr>
-  `,
-            )
-            .join("");
+        loadTransactions();
+      });
+
+      async function loadTransactions() {
+        let url = "/transactions";
+        const params = [];
+
+        if (filters.type) params.push(`type=${filters.type}`);
+        if (filters.fraud !== "")
+          params.push(`is_fraud=${filters.fraud === "true"}`);
+
+        if (params.length) url += "?" + params.join("&");
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const tbody = document.getElementById("transactionsBody");
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML = `
+            <tr class="empty-row">
+              <td colspan="5">No transactions found</td>
+            </tr>
+          `;
+          return;
         }
+
+        tbody.innerHTML = data
+          .map(
+            (t) => `
+          <tr class="${t.prediction === 1 ? "fraud-row" : ""}">
+            <td>${t.id}</td>
+            <td>${t.type}</td>
+            <td>${t.amount}</td>
+            <td>${t.prediction ?? "—"}</td>
+            <td>${t.probability ?? "—"}</td>
+          </tr>
+        `,
+          )
+          .join("");
       }
 
-      loadTable();
+      function resetFilters() {
+        filters = { type: "", fraud: "" };
+
+        document.querySelectorAll(".filter-buttons").forEach((group) => {
+          group.querySelectorAll(".chip").forEach((b) => {
+            b.classList.toggle("active", b.dataset.value === "");
+          });
+        });
+
+        loadTransactions();
+      }
+
+      loadTransactions();
     </script>
   </body>
 </html>

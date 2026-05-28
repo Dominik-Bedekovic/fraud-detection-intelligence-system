@@ -30,8 +30,8 @@
         </div>
 
         <div class="kpi-card">
-          <h3>Fraud Detected</h3>
-          <p id="fraudDetected" class="danger">0</p>
+          <h3>Frauds Detected</h3>
+          <p id="fraudsDetected" class="danger">0</p>
         </div>
 
         <div class="kpi-card">
@@ -54,18 +54,64 @@
 
     <script>
       async function loadDashboardStats() {
+        try {
+          const res = await fetch("/dashboard/stats");
+          const data = await res.json();
+
+          document.getElementById("totalTransactions").innerText =
+            data.total_transactions;
+
+          document.getElementById("fraudsDetected").innerText =
+            data.fraud_transactions;
+
+          document.getElementById("fraudRate").innerText =
+            data.fraud_rate + "%";
+        } catch (err) {
+          console.error("Failed to load dashboard stats:", err);
+        }
+      }
+
+      loadDashboardStats();
+
+      setInterval(loadDashboardStats, 5000);
+    </script>
+
+    <script>
+      async function loadRecentTransactions() {
+        const res = await fetch("/transactions/recent");
         const data = await res.json();
 
-        document.getElementById("totalTransactions").innerText =
-          data.total_transactions;
+        const table = document.querySelector(".data-table");
 
-        document.getElementById("fraudDetected").innerText =
-          data.fraud_transactions;
-
-        document.getElementById("fraudRate").innerText = data.fraud_rate + "%";
-
-        loadDashboardStats();
+        table.innerHTML = `
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Amount</th>
+        <th>Prediction</th>
+        <th>Probability</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${data
+        .map(
+          (t) => `
+        <tr>
+          <td>${t.id}</td>
+          <td>${t.type}</td>
+          <td>${t.amount}</td>
+          <td>${t.prediction ?? "—"}</td>
+          <td>${t.probability ?? "—"}</td>
+        </tr>
+      `,
+        )
+        .join("")}
+    </tbody>
+  `;
       }
+
+      loadRecentTransactions();
     </script>
   </body>
 </html>

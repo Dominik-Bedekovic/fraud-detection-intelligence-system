@@ -15,6 +15,8 @@ from backend.app.models import User
 from backend.app import models as db_models
 from typing import Annotated
 from backend.app import models as db_models
+from typing import Optional
+from sqlalchemy.orm import joinedload
 
 app = FastAPI()
 
@@ -296,20 +298,37 @@ async def predict_batch(
 
 #Pass the transaction history values to the HTML page from the database
 @app.get("/transactions")
-def get_transactions(db: Session = Depends(get_db)):
-    transactions = db.query(db_models.Transaction).all()
+def get_transactions(
+    db: Session = Depends(get_db),
+    type: Optional[str] = None,
+    is_fraud: Optional[bool] = None
+):
+    query = db.query(db_models.Transaction).options(
+        joinedload(db_models.Transaction.prediction_result)
+    )
 
-    result = []
-    for t in transactions:
-        result.append({
+    # filter by type
+    if type:
+        query = query.filter(db_models.Transaction.type == type)
+
+    # filter by fraud
+    if is_fraud is not None:
+        query = query.join(db_models.PredictionResult).filter(
+            db_models.PredictionResult.prediction == (1 if is_fraud else 0)
+        )
+
+    transactions = query.all()
+
+    return [
+        {
             "id": t.id,
             "type": t.type,
             "amount": t.amount,
             "prediction": t.prediction_result.prediction if t.prediction_result else None,
             "probability": t.prediction_result.probability if t.prediction_result else None,
-        })
-
-    return result
+        }
+        for t in transactions
+    ]
 
 @app.get("/dashboard/stats")
 def dashboardStat(db: Session = Depends(get_db)):
@@ -334,6 +353,41 @@ def dashboardStat(db: Session = Depends(get_db)):
         "fraud_transactions": fraud_transactions,
         "fraud_rate": round(fraud_rate, 2)
     }
+
+@app.get("/transactions/recent")
+def get_recent_transactions(
+    db: Session = Depends(get_db),
+    type: Optional[str] = None,
+    is_fraud: Optional[bool] = None
+):
+    query = (
+        db.query(db_models.Transaction)
+        .order_by(db_models.Transaction.id.desc())
+        .limit(10)
+    )
+
+    if type:
+        query = query.filter(db_models.Transaction.type == type)
+
+    transactions = query.all()
+
+    result = []
+    for t in transactions:
+        fraud = t.prediction_result.prediction == 1 if t.prediction_result else False
+
+        if is_fraud is not None:
+            if fraud != is_fraud:
+                continue
+
+        result.append({
+            "id": t.id,
+            "type": t.type,
+            "amount": t.amount,
+            "prediction": t.prediction_result.prediction if t.prediction_result else None,
+            "probability": t.prediction_result.probability if t.prediction_result else None,
+        })
+
+    return result
 
 if __name__ == "__main__":
     import uvicorn
