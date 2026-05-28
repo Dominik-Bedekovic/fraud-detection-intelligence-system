@@ -94,12 +94,11 @@ nav li {
 }
 
 .card {
-  width: 900px;
-  max-width: 95%;
-  margin: 0 auto;
+  width: 90vw;
+  max-width: 1400px;
+  margin: 20px auto;
   border-radius: 12px;
   padding: 20px;
-  margin: 20px 0;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   background: var(--card);
 }
@@ -197,7 +196,7 @@ input[type="file"] {
 .page-container {
   display: flex;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 20px 10px;
 }
 
 .data-table {
