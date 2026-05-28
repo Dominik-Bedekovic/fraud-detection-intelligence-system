@@ -54,8 +54,8 @@ class ModelLoader:
             bundle = joblib.load(self.model_path)
             # dict bundle with pipeline+threshold
             if isinstance(bundle, dict):  
-                self.pipeline = bundle["pipeline"]
-                self.threshold = bundle["threshold"]
+                self.pipeline = bundle.get("pipeline")
+                self.threshold = bundle.get("threshold",0.1)
                 self.model_name = bundle.get("model_name")
                 self.model_version = bundle.get("features_version")
             else:
