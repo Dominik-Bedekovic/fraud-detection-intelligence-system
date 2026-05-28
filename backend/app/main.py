@@ -18,6 +18,7 @@ from backend.app import models as db_models
 from typing import Optional
 from sqlalchemy.orm import joinedload
 
+
 app = FastAPI()
 
 #mount /auth endpoints
@@ -56,7 +57,7 @@ class ModelLoader:
         try:
             bundle = joblib.load(self.model_path)
             # dict bundle with pipeline+threshold
-            if isinstance(bundle, dict):  
+            if isinstance(bundle, dict):
                 self.pipeline = bundle.get("pipeline")
                 self.threshold = bundle.get("threshold",0.1)
                 self.model_name = bundle.get("model_name")
@@ -211,29 +212,27 @@ def predict(
         step=1,
         source="single"
     )
-
     db.add(db_tx)
     db.commit()
     db.refresh(db_tx)
 
-
-    #save prediction to database
-    db_prediction = db_models.PredictionResult (
-        transaction_id = db_tx.id,
-        prediction = 1 if result["is_fraud"] else 0,
-        label = "fraud" if result["is_fraud"] else "not_fraud",
-        probability = result["fraud_probability"] / 100 
+    # save the prediction result too
+    db_pred = db_models.PredictionResult(
+        transaction_id=db_tx.id,
+        prediction=1 if result["is_fraud"] else 0,
+        label="fraud" if result["is_fraud"] else "not_fraud",
+        probability=result["fraud_probability"],
+        model_name=model_loader.model_name,
+        model_version=model_loader.model_version,
+        threshold=model_loader.threshold
     )
-
-    db.add(db_prediction)
+    db.add(db_pred)
     db.commit()
-    db.refresh(db_prediction)
-
 
     return {
-        "prediction": db_prediction.prediction,
-        "label": db_prediction.label,
-        "probability": db_prediction.probability * 100
+        "prediction": 1 if result["is_fraud"] else 0,
+        "label": "fraud" if result["is_fraud"] else "not_fraud",
+        "probability": result["fraud_probability"]
     }
 
 # batch prediction endpoint, accepts CSV file and returns JSON list of predictions
@@ -245,15 +244,15 @@ async def predict_batch(
 ):
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
-    
+
     contents = await file.read()
     try:
         df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading CSV file: {e}")
-    
+
     results = prediction_service.predict_fraud_batch(df)
-    
+
     db_transactions = []
     for index, row in df.iterrows():
         db_tx = db_models.Transaction(
@@ -388,6 +387,7 @@ def get_recent_transactions(
         })
 
     return result
+
 
 if __name__ == "__main__":
     import uvicorn
