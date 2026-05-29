@@ -13,7 +13,6 @@ from passlib.context import CryptContext
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 
-
 router = APIRouter(
     prefix="/auth",
     tags=["auth"]
