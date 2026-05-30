@@ -1,5 +1,6 @@
 document.getElementById("singleForm").onsubmit = async (e) => {
   e.preventDefault();
+  const token = localStorage.getItem("token");
 
   const payload = {
     type: document.getElementById("type").value,
@@ -12,7 +13,7 @@ document.getElementById("singleForm").onsubmit = async (e) => {
 
   const res = await fetch("/predict", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     body: JSON.stringify(payload),
   });
 
