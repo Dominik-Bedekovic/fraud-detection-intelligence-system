@@ -12,3 +12,5 @@ xgboost
 lightgbm
 pytest
 httpx
+passlib[bcrypt]
+python-jose[cryptography]
