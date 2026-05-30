@@ -2,6 +2,7 @@ document.getElementById("batchForm").onsubmit = async (e) => {
   e.preventDefault();
 
   const fileInput = document.getElementById("csvFile");
+  const token = localStorage.getItem("token");
 
   if (!fileInput.files.length) {
     alert("Please select a CSV file");
@@ -16,6 +17,7 @@ document.getElementById("batchForm").onsubmit = async (e) => {
   try {
     const res = await fetch("/predict/batch", {
       method: "POST",
+      headers: {"Authorization": `Bearer ${token}`},
       body: formData,
     });
 
