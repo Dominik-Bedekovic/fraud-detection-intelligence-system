@@ -325,10 +325,12 @@ def get_transactions(
             "amount": t.amount,
             "prediction": t.prediction_result.prediction if t.prediction_result else None,
             "probability": t.prediction_result.probability if t.prediction_result else None,
+            "created_at": t.created_at,
         }
         for t in transactions
     ]
 
+#Endpoint for passing stats to the Pie Chart and Trend Chart
 @app.get("/dashboard/stats")
 def dashboardStat(db: Session = Depends(get_db)):
     
@@ -338,12 +340,14 @@ def dashboardStat(db: Session = Depends(get_db)):
 
     total_transactions = len(transactions)
 
+    #Get number of transactions that are fraudulent
     for tx in transactions:
         if tx.prediction_result and tx.prediction_result.prediction == 1:
             fraud_transactions += 1
 
     fraud_rate = 0
 
+    #Get the comparison value of fradulent vs non-fradulent transactions
     if total_transactions > 0:
         fraud_rate = (fraud_transactions / total_transactions) * 100
 
@@ -353,6 +357,7 @@ def dashboardStat(db: Session = Depends(get_db)):
         "fraud_rate": round(fraud_rate, 2)
     }
 
+#Endpoint for the dashboard recent transactions table
 @app.get("/transactions/recent")
 def get_recent_transactions(
     db: Session = Depends(get_db),
@@ -384,6 +389,7 @@ def get_recent_transactions(
             "amount": t.amount,
             "prediction": t.prediction_result.prediction if t.prediction_result else None,
             "probability": t.prediction_result.probability if t.prediction_result else None,
+            "created_at": t.created_at,
         })
 
     return result

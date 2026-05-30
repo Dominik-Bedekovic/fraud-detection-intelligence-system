@@ -9,17 +9,6 @@
   <body>
     <div id="navbar"></div>
 
-    <script>
-      async function loadNavbar() {
-        const res = await fetch("/static/components/navbar.html");
-        const html = await res.text();
-
-        document.getElementById("navbar").innerHTML = html;
-      }
-
-      loadNavbar();
-    </script>
-
     <div class="container">
       <div class="card" id="single">
         <h2>Single Transaction</h2>
@@ -73,96 +62,13 @@
         </form>
       </div>
       <div id="batchRes" class="result-box"></div>
+
+      <script src="/static/js/navbar.js"></script>
       <script>
-        document.getElementById("singleForm").onsubmit = async (e) => {
-          e.preventDefault();
-
-          const payload = {
-            type: document.getElementById("type").value,
-            amount: Number(document.getElementById("amount").value),
-            oldbalanceOrg: Number(
-              document.getElementById("oldbalanceOrg").value,
-            ),
-            newbalanceOrig: Number(
-              document.getElementById("newbalanceOrig").value,
-            ),
-            oldbalanceDest: Number(
-              document.getElementById("oldbalanceDest").value,
-            ),
-            newbalanceDest: Number(
-              document.getElementById("newbalanceDest").value,
-            ),
-          };
-
-          const res = await fetch("/predict", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-
-          const data = await res.json();
-
-          const box = document.getElementById("singleRes");
-
-          box.classList.add("show");
-
-          box.innerHTML = `
-            <div>
-              <h3>Result</h3>
-              <p><strong>Label:</strong> ${data.label}</p>
-              <p><strong>Fraud probability:</strong> ${data.probability}%</p>
-            </div>
-          `;
-        };
+        loadNavbar();
       </script>
-      <script>
-        document.getElementById("batchForm").onsubmit = async (e) => {
-          e.preventDefault();
-
-          const fileInput = document.getElementById("csvFile");
-
-          if (!fileInput.files.length) {
-            alert("Please select a CSV file");
-            return;
-          }
-
-          const formData = new FormData();
-          formData.append("file", fileInput.files[0]);
-
-          document.getElementById("batchRes").innerText = "Processing...";
-
-          try {
-            const res = await fetch("/predict/batch", {
-              method: "POST",
-              body: formData,
-            });
-
-            const data = await res.json();
-
-            const box = document.getElementById("batchRes");
-
-            box.classList.add("show");
-
-            box.innerHTML = `
-              <h3>Batch Results:</h3>
-              ${data.results
-                .map(
-                  (r, i) => `
-                <div style="padding:8px; border-bottom:1px solid #eee;">
-                <h3>Result #${i + 1}</h3>
-                <p><strong>Label:</strong> ${r.label}</p>
-                <p><strong>Fraud probability:</strong> ${r.probability}%</p>
-                </div>
-  `,
-                )
-                .join("")}
-`;
-          } catch (err) {
-            document.getElementById("batchRes").innerText =
-              "Error: " + err.message;
-          }
-        };
-      </script>
+      <script src="/static/js/batch-input.js"></script>
+      <script src="/static/js/single-input.js"></script>
     </div>
   </body>
 </html>

@@ -57,7 +57,7 @@ async def create_user(
     create_user_model = User(
         email=create_user_request.email,
         password_hash=bcrypt_context.hash(
-            create_user_request.password
+            create_user_request.password[:72]
         ),
         full_name=create_user_request.full_name,
         role_id=1

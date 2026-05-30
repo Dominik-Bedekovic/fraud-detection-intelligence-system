@@ -5,21 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/static/css/styles.css" />
     <link rel="stylesheet" href="/static/css/normalize.css" />
+
     <title>Dashboard</title>
   </head>
   <body>
     <div id="navbar"></div>
-
-    <script>
-      async function loadNavbar() {
-        const res = await fetch("/static/components/navbar.html");
-        const html = await res.text();
-
-        document.getElementById("navbar").innerHTML = html;
-      }
-
-      loadNavbar();
-    </script>
 
     <div class="container">
       <h2 class="section-title">Overview</h2>
@@ -40,72 +30,31 @@
         </div>
       </div>
 
+      <div class="grid-2">
+        <div class="card">
+          <canvas id="pieChart"></canvas>
+        </div>
+
+        <div class="card chart-center">
+          <div class="chart-wrapper">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
       <h2 class="section-title">Recent Transactions</h2>
-      <div class="card">
+      <div class="card chart-center">
         <table class="data-table"></table>
       </div>
     </div>
 
+    <script src="/static/js/navbar.js"></script>
     <script>
-      async function loadDashboardStats() {
-        try {
-          const res = await fetch("/dashboard/stats");
-          const data = await res.json();
-
-          document.getElementById("totalTransactions").innerText =
-            data.total_transactions;
-
-          document.getElementById("fraudsDetected").innerText =
-            data.fraud_transactions;
-
-          document.getElementById("fraudRate").innerText =
-            data.fraud_rate + "%";
-        } catch (err) {
-          console.error("Failed to load dashboard stats:", err);
-        }
-      }
-
-      loadDashboardStats();
-
-      setInterval(loadDashboardStats, 5000);
+      loadNavbar();
     </script>
-
-    <script>
-      async function loadRecentTransactions() {
-        const res = await fetch("/transactions/recent");
-        const data = await res.json();
-
-        const table = document.querySelector(".data-table");
-
-        table.innerHTML = `
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Type</th>
-        <th>Amount</th>
-        <th>Prediction</th>
-        <th>Probability</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${data
-        .map(
-          (t) => `
-        <tr>
-          <td>${t.id}</td>
-          <td>${t.type}</td>
-          <td>${t.amount}</td>
-          <td>${t.prediction ?? "—"}</td>
-          <td>${t.probability ?? "—"}</td>
-        </tr>
-      `,
-        )
-        .join("")}
-    </tbody>
-  `;
-      }
-
-      loadRecentTransactions();
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/pie-chart.js"></script>
+    <script src="/static/js/trend-chart.js"></script>
+    <script src="/static/js/recent-transactions.js"></script>
   </body>
 </html>

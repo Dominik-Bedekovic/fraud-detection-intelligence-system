@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="stylesheet" href="/static/css/normalize.css" />
+    <title>Register</title>
+  </head>
+
+  <body>
+    <div id="navbar"></div>
+
+    <div class="auth-page">
+      <div class="card auth-card">
+        <form id="registerForm">
+          <input type="text" id="full_name" placeholder="Full name" />
+          <input type="email" id="email" placeholder="Email" />
+          <input type="password" id="password" placeholder="Password" />
+          <button class="btn" type="submit">Register</button>
+        </form>
+        <p>
+          Already have an account?
+          <a href="/static/login.html">Login here</a>
+        </p>
+      </div>
+    </div>
+
+    <script src="/static/js/register-form.js"></script>
+    <script src="/static/js/navbar.js"></script>
+    <script>
+      loadNavbar("auth");
+    </script>
+  </body>
+</html>
