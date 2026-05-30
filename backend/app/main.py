@@ -17,7 +17,7 @@ from typing import Annotated
 from backend.app import models as db_models
 from typing import Optional
 from sqlalchemy.orm import joinedload
-
+from fastapi import Query
 
 app = FastAPI()
 
@@ -295,16 +295,67 @@ async def predict_batch(
 
     return {"results": formatted_results}
 
+@app.get("/admin/transactions/user")
+def get_user_transactions_admin(
+    user=Depends(require_admin),
+    db: Session = Depends(get_db),
+    user_id: Optional[int] = Query(None),
+    email: Optional[str] = Query(None)
+):
+    # 1. Validate input
+    if not user_id and not email:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either user_id or email"
+        )
+
+    # 2. Resolve target user
+    query_user = db.query(User)
+
+    if user_id:
+        query_user = query_user.filter(User.id == user_id)
+    else:
+        query_user = query_user.filter(User.email == email)
+
+    target_user = query_user.first()
+
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # 3. Fetch transactions
+    transactions = (
+        db.query(db_models.Transaction)
+        .filter(db_models.Transaction.user_id == target_user.id)
+        .options(joinedload(db_models.Transaction.prediction_result))
+        .order_by(db_models.Transaction.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": t.id,
+            "type": t.type,
+            "amount": t.amount,
+            "prediction": t.prediction_result.prediction if t.prediction_result else None,
+            "probability": t.prediction_result.probability if t.prediction_result else None,
+            "created_at": t.created_at,
+        }
+        for t in transactions
+    ]
 #Pass the transaction history values to the HTML page from the database
 @app.get("/transactions")
 def get_transactions(
     db: Session = Depends(get_db),
+    user=Depends(get_current_user),
     type: Optional[str] = None,
     is_fraud: Optional[bool] = None
 ):
-    query = db.query(db_models.Transaction).options(
-        joinedload(db_models.Transaction.prediction_result)
+    query = (
+        db.query(db_models.Transaction)
+        .filter(db_models.Transaction.user_id == user["user_id"])
+        .options(joinedload(db_models.Transaction.prediction_result))
     )
+
 
     # filter by type
     if type:
@@ -332,9 +383,14 @@ def get_transactions(
 
 #Endpoint for passing stats to the Pie Chart and Trend Chart
 @app.get("/dashboard/stats")
-def dashboardStat(db: Session = Depends(get_db)):
+def dashboardStat(
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+    ):
     
-    transactions = db.query(db_models.Transaction).all()
+    transactions = db.query(db_models.Transaction).filter(
+        db_models.Transaction.user_id == user["user_id"]
+    ).all()
 
     fraud_transactions = 0
 
@@ -361,11 +417,13 @@ def dashboardStat(db: Session = Depends(get_db)):
 @app.get("/transactions/recent")
 def get_recent_transactions(
     db: Session = Depends(get_db),
+    user=Depends(get_current_user),
     type: Optional[str] = None,
     is_fraud: Optional[bool] = None
 ):
     query = (
         db.query(db_models.Transaction)
+        .filter(db_models.Transaction.user_id == user["user_id"])
         .order_by(db_models.Transaction.id.desc())
         .limit(10)
     )

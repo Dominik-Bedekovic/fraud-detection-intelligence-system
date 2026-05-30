@@ -1,7 +1,13 @@
 let pieChart;
 
 async function loadDashboardStats() {
-  const res = await fetch("/dashboard/stats");
+  const token = localStorage.getItem("token");
+  const res = await fetch("/dashboard/stats", {
+    headers: {
+    "Authorization": `Bearer ${token}`,
+    },
+  }
+  );
   const data = await res.json();
 
   document.getElementById("totalTransactions").innerText =

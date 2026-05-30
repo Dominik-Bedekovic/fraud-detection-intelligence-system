@@ -1,7 +1,12 @@
 let trendChart;
 
 async function loadTrendChart() {
-  const res = await fetch("/transactions/recent");
+  const token = localStorage.getItem("token")
+  const res = await fetch("/transactions/recent",{
+    headers:{
+    "Authorization": `Bearer ${token}`,
+    },
+  });
   const data = await res.json();
 
   const sorted = data

@@ -30,7 +30,12 @@ async function loadTransactions() {
 
   if (params.length) url += "?" + params.join("&");
 
-  const res = await fetch(url);
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(
+    url,{
+    headers: {"Authorization": `Bearer ${token}`,},
+    });
   const data = await res.json();
 
   const tbody = document.getElementById("transactionsBody");
