@@ -15,6 +15,9 @@ from backend.app.models import User
 from backend.app import models as db_models
 from typing import Annotated
 from backend.app import models as db_models
+from typing import Optional
+from sqlalchemy.orm import joinedload
+
 
 app = FastAPI()
 
@@ -54,7 +57,7 @@ class ModelLoader:
         try:
             bundle = joblib.load(self.model_path)
             # dict bundle with pipeline+threshold
-            if isinstance(bundle, dict):  
+            if isinstance(bundle, dict):
                 self.pipeline = bundle.get("pipeline")
                 self.threshold = bundle.get("threshold",0.1)
                 self.model_name = bundle.get("model_name")
@@ -241,15 +244,15 @@ async def predict_batch(
 ):
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
-    
+
     contents = await file.read()
     try:
         df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading CSV file: {e}")
-    
+
     results = prediction_service.predict_fraud_batch(df)
-    
+
     db_transactions = []
     for index, row in df.iterrows():
         db_tx = db_models.Transaction(
@@ -291,6 +294,106 @@ async def predict_batch(
     db.commit()
 
     return {"results": formatted_results}
+
+#Pass the transaction history values to the HTML page from the database
+@app.get("/transactions")
+def get_transactions(
+    db: Session = Depends(get_db),
+    type: Optional[str] = None,
+    is_fraud: Optional[bool] = None
+):
+    query = db.query(db_models.Transaction).options(
+        joinedload(db_models.Transaction.prediction_result)
+    )
+
+    # filter by type
+    if type:
+        query = query.filter(db_models.Transaction.type == type)
+
+    # filter by fraud
+    if is_fraud is not None:
+        query = query.join(db_models.PredictionResult).filter(
+            db_models.PredictionResult.prediction == (1 if is_fraud else 0)
+        )
+
+    transactions = query.all()
+
+    return [
+        {
+            "id": t.id,
+            "type": t.type,
+            "amount": t.amount,
+            "prediction": t.prediction_result.prediction if t.prediction_result else None,
+            "probability": t.prediction_result.probability if t.prediction_result else None,
+            "created_at": t.created_at,
+        }
+        for t in transactions
+    ]
+
+#Endpoint for passing stats to the Pie Chart and Trend Chart
+@app.get("/dashboard/stats")
+def dashboardStat(db: Session = Depends(get_db)):
+    
+    transactions = db.query(db_models.Transaction).all()
+
+    fraud_transactions = 0
+
+    total_transactions = len(transactions)
+
+    #Get number of transactions that are fraudulent
+    for tx in transactions:
+        if tx.prediction_result and tx.prediction_result.prediction == 1:
+            fraud_transactions += 1
+
+    fraud_rate = 0
+
+    #Get the comparison value of fradulent vs non-fradulent transactions
+    if total_transactions > 0:
+        fraud_rate = (fraud_transactions / total_transactions) * 100
+
+    return {
+        "total_transactions": total_transactions,
+        "fraud_transactions": fraud_transactions,
+        "fraud_rate": round(fraud_rate, 2)
+    }
+
+#Endpoint for the dashboard recent transactions table
+@app.get("/transactions/recent")
+def get_recent_transactions(
+    db: Session = Depends(get_db),
+    type: Optional[str] = None,
+    is_fraud: Optional[bool] = None
+):
+    query = (
+        db.query(db_models.Transaction)
+        .order_by(db_models.Transaction.id.desc())
+        .limit(10)
+    )
+
+    if type:
+        query = query.filter(db_models.Transaction.type == type)
+
+    transactions = query.all()
+
+    result = []
+    for t in transactions:
+        fraud = t.prediction_result.prediction == 1 if t.prediction_result else False
+
+        if is_fraud is not None:
+            if fraud != is_fraud:
+                continue
+
+        result.append({
+            "id": t.id,
+            "type": t.type,
+            "amount": t.amount,
+            "prediction": t.prediction_result.prediction if t.prediction_result else None,
+            "probability": t.prediction_result.probability if t.prediction_result else None,
+            "created_at": t.created_at,
+        })
+
+    return result
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="stylesheet" href="/static/css/normalize.css" />
+
+    <title>Dashboard</title>
+  </head>
+  <body>
+    <div id="navbar"></div>
+
+    <div class="container">
+      <h2 class="section-title">Overview</h2>
+      <div class="grid-3">
+        <div class="kpi-card">
+          <h3>Total Transactions</h3>
+          <p id="totalTransactions">0</p>
+        </div>
+
+        <div class="kpi-card">
+          <h3>Frauds Detected</h3>
+          <p id="fraudsDetected" class="danger">0</p>
+        </div>
+
+        <div class="kpi-card">
+          <h3>Fraud Rate</h3>
+          <p id="fraudRate">0%</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <canvas id="pieChart"></canvas>
+        </div>
+
+        <div class="card chart-center">
+          <div class="chart-wrapper">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Recent Transactions</h2>
+      <div class="card chart-center">
+        <table class="data-table"></table>
+      </div>
+    </div>
+
+    <script src="/static/js/navbar.js"></script>
+    <script>
+      loadNavbar();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/pie-chart.js"></script>
+    <script src="/static/js/trend-chart.js"></script>
+    <script src="/static/js/recent-transactions.js"></script>
+  </body>
+</html>

@@ -4,16 +4,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/static/css/styles.css" />
     <link rel="stylesheet" href="/static/css/normalize.css" />
-    <title>FDIS API Test</title>
+    <title>Input Page</title>
   </head>
   <body>
-    <nav>
-      <h1>Fraud detection intelligence System</h1>
-      <ul>
-        <li><a href="#single">Single transaction</a></li>
-        <li><a href="#batch">Batch Transaction</a></li>
-      </ul>
-    </nav>
+    <div id="navbar"></div>
+
     <div class="container">
       <div class="card" id="single">
         <h2>Single Transaction</h2>
@@ -53,7 +48,7 @@
             <label>Receiver Balance After</label>
             <input type="number" step="0.01" id="newbalanceDest" value="0.0" />
           </div>
-          <button type="submit">Predict Single</button>
+          <button class="btn" type="submit">Predict Single</button>
           <div id="singleRes" class="result-box"></div>
         </form>
       </div>
@@ -63,100 +58,17 @@
           <div class="field">
             <input type="file" id="csvFile" accept=".csv" required />
           </div>
-          <button type="submit">Predict Batch</button>
+          <button class="btn" type="submit">Predict Batch</button>
         </form>
       </div>
       <div id="batchRes" class="result-box"></div>
+
+      <script src="/static/js/navbar.js"></script>
       <script>
-        document.getElementById("singleForm").onsubmit = async (e) => {
-          e.preventDefault();
-
-          const payload = {
-            type: document.getElementById("type").value,
-            amount: Number(document.getElementById("amount").value),
-            oldbalanceOrg: Number(
-              document.getElementById("oldbalanceOrg").value,
-            ),
-            newbalanceOrig: Number(
-              document.getElementById("newbalanceOrig").value,
-            ),
-            oldbalanceDest: Number(
-              document.getElementById("oldbalanceDest").value,
-            ),
-            newbalanceDest: Number(
-              document.getElementById("newbalanceDest").value,
-            ),
-          };
-
-          const res = await fetch("/predict", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-
-          const data = await res.json();
-
-          const box = document.getElementById("singleRes");
-
-          box.classList.add("show");
-
-          box.innerHTML = `
-            <div>
-              <h3>Result</h3>
-              <p><strong>Label:</strong> ${data.label}</p>
-              <p><strong>Fraud probability:</strong> ${data.probability}%</p>
-            </div>
-          `;
-        };
+        loadNavbar();
       </script>
-      <script>
-        document.getElementById("batchForm").onsubmit = async (e) => {
-          e.preventDefault();
-
-          const fileInput = document.getElementById("csvFile");
-
-          if (!fileInput.files.length) {
-            alert("Please select a CSV file");
-            return;
-          }
-
-          const formData = new FormData();
-          formData.append("file", fileInput.files[0]);
-
-          document.getElementById("batchRes").innerText = "Processing...";
-
-          try {
-            const res = await fetch("/predict/batch", {
-              method: "POST",
-              body: formData,
-            });
-
-            const data = await res.json();
-
-            const box = document.getElementById("batchRes");
-
-            box.classList.add("show");
-
-            box.innerHTML = `
-              <h3>Batch Results:</h3>
-              ${data.results
-                .map(
-                  (r, i) => `
-                <div style="padding:8px; border-bottom:1px solid #eee;">
-                <h3>Result #${i + 1}</h3>
-                <p><strong>Label:</strong> ${r.label}</p>
-                <p><strong>Fraud probability:</strong> ${r.probability}%</p>
-                </div>
-  `,
-                )
-                .join("")}
-`;
-          } catch (err) {
-            document.getElementById("batchRes").innerText =
-              "Error: " + err.message;
-          }
-        };
-      </script>
+      <script src="/static/js/batch-input.js"></script>
+      <script src="/static/js/single-input.js"></script>
     </div>
   </body>
 </html>

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="stylesheet" href="/static/css/normalize.css" />
+    <title>Transaction History</title>
+  </head>
+
+  <div id="navbar"></div>
+
+  <body>
+    <div class="page-container">
+      <div class="card">
+        <div class="filters">
+          <div class="filter-group">
+            <label class="filter-label">Type</label>
+            <div class="filter-buttons" data-filter="type">
+              <button class="chip active" data-value="">All</button>
+              <button class="chip" data-value="PAYMENT">Payment</button>
+              <button class="chip" data-value="TRANSFER">Transfer</button>
+              <button class="chip" data-value="CASH_OUT">Cash Out</button>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">Fraud</label>
+            <div class="filter-buttons" data-filter="fraud">
+              <button class="chip active" data-value="">All</button>
+              <button class="chip" data-value="true">Fraud</button>
+              <button class="chip" data-value="false">Safe</button>
+            </div>
+          </div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Prediction</th>
+              <th>Probability</th>
+            </tr>
+          </thead>
+          <tbody id="transactionsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script src="/static/js/navbar.js"></script>
+    <script>
+      loadNavbar();
+    </script>
+    <script src="/static/js/transactions-table.js"></script>
+  </body>
+</html>
