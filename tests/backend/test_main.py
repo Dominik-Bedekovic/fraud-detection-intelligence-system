@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from backend.app import models as db_models
-from backend.app.main import app, get_db, prediction_service
+from backend.app.main import app, get_current_user, get_db, prediction_service
 
 
 class FakeDB:
@@ -35,8 +35,21 @@ def create_test_client(fake_db: FakeDB) -> TestClient:
     def override_get_db():
         yield fake_db
 
+    def override_get_current_user():
+        return {
+            "email": "test@example.com",
+            "user_id": 1,
+            "role_id": 1,
+        }
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
     return TestClient(app)
+
+
+def clear_dependency_overrides():
+    app.dependency_overrides.clear()
 
 
 def test_database_health_returns_connected():
@@ -45,7 +58,7 @@ def test_database_health_returns_connected():
 
     response = client.get("/db/health")
 
-    app.dependency_overrides.clear()
+    clear_dependency_overrides()
 
     assert response.status_code == 200
     assert response.json() == {"database": "connected"}
@@ -76,7 +89,7 @@ def test_predict_returns_result_and_stores_transaction_and_prediction(monkeypatc
 
     response = client.post("/predict", json=payload)
 
-    app.dependency_overrides.clear()
+    clear_dependency_overrides()
 
     assert response.status_code == 200
     assert response.json() == {
@@ -92,6 +105,7 @@ def test_predict_returns_result_and_stores_transaction_and_prediction(monkeypatc
     stored_prediction = fake_db.added[1]
 
     assert isinstance(stored_transaction, db_models.Transaction)
+    assert stored_transaction.user_id == 1
     assert stored_transaction.type == "TRANSFER"
     assert stored_transaction.amount == 5000
     assert stored_transaction.source == "single"
@@ -140,7 +154,7 @@ def test_predict_batch_returns_results_and_stores_batch_transactions(monkeypatch
         },
     )
 
-    app.dependency_overrides.clear()
+    clear_dependency_overrides()
 
     assert response.status_code == 200
     assert response.json() == {
@@ -169,8 +183,11 @@ def test_predict_batch_returns_results_and_stores_batch_transactions(monkeypatch
     assert len(stored_transactions) == 2
     assert len(stored_predictions) == 2
 
+    assert stored_transactions[0].user_id == 1
     assert stored_transactions[0].source == "batch"
     assert stored_transactions[0].type == "TRANSFER"
+
+    assert stored_transactions[1].user_id == 1
     assert stored_transactions[1].source == "batch"
     assert stored_transactions[1].type == "PAYMENT"
 
@@ -196,7 +213,7 @@ def test_predict_batch_rejects_non_csv_file():
         },
     )
 
-    app.dependency_overrides.clear()
+    clear_dependency_overrides()
 
     assert response.status_code == 400
     assert response.json() == {
