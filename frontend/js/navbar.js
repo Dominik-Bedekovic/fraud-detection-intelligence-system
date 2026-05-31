@@ -4,12 +4,10 @@ async function loadNavbar(mode = "full") {
 
   const res = await fetch("/static/components/navbar.html");
   const html = await res.text();
-
   container.innerHTML = html;
 
   const navLinks = container.querySelector("#navLinks");
 
-  // AUTH MODE → show ONLY title
   if (mode === "auth") {
     if (navLinks) navLinks.style.display = "none";
     return;
@@ -31,10 +29,24 @@ async function loadNavbar(mode = "full") {
   const userNav = container.querySelector("#userNav");
   if (!userNav) return;
 
+  let adminLink = "";
+
+  if (user.role_id === 2) {
+    adminLink = `<a href="/static/admin-users.html" id="adminBtn">Users</a>`;
+  }
+
+  const showNavLinks = mode !== "admin";
+
+  if (navLinks) {
+    navLinks.style.display = showNavLinks ? "flex" : "none";
+  }
+
   userNav.innerHTML = `
     <div class="user-menu">
       <button id="userBtn">${user.full_name}</button>
       <div id="dropdownMenu" class="dropdown-menu">
+        ${adminLink}
+        <a href="/static/profile.html" id="profileBtn">Profile</a>
         <a href="#" id="logoutBtn">Logout</a>
       </div>
     </div>
@@ -43,6 +55,8 @@ async function loadNavbar(mode = "full") {
   const userBtn = userNav.querySelector("#userBtn");
   const dropdown = userNav.querySelector("#dropdownMenu");
   const logoutBtn = userNav.querySelector("#logoutBtn");
+  const adminBtn = userNav.querySelector("#adminBtn");
+  const profileBtn = userNav.querySelector("#profileBtn");
 
   userBtn?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -53,6 +67,16 @@ async function loadNavbar(mode = "full") {
     e.preventDefault();
     localStorage.removeItem("token");
     window.location.href = "/static/login.html";
+  });
+
+  adminBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = "/static/admin-users.html";
+  });
+
+  profileBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = "/static/profile.html";
   });
 
   document.addEventListener("click", () => {
