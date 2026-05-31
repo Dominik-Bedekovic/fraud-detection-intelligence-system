@@ -9,7 +9,6 @@ async function loadNavbar(mode = "full") {
 
   const navLinks = container.querySelector("#navLinks");
 
-  // AUTH MODE → show ONLY title
   if (mode === "auth") {
     if (navLinks) navLinks.style.display = "none";
     return;
