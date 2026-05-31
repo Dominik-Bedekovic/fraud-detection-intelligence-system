@@ -135,20 +135,17 @@ def me(
             detail="User not found"
         )
 
+    role = db.execute(
+        text("SELECT name FROM roles WHERE id = :id"),
+        {"id": db_user.role_id}
+    ).fetchone()
+
     return {
         "id": db_user.id,
         "email": db_user.email,
         "full_name": db_user.full_name,
         "role_id": db_user.role_id,
-        "transactions": [
-            {
-                "id": tx.id,
-                "type": tx.type,
-                "amount": tx.amount,
-                "created_at": tx.created_at
-            }
-            for tx in db_user.transactions
-        ]
+        "role_name": role.name if role else "unknown"
     }
 
 #lists all users, only for admins

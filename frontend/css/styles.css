@@ -163,9 +163,8 @@ nav li {
 }
 
 .auth-page {
-  min-height: 100vh;
+  min-height: calc(100vh - 56px);
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
   background: var(--bg);
@@ -188,19 +187,20 @@ nav li {
   display: flex;
   flex-direction: column;
   gap: 15px;
+  align-items: center;
 }
 
 .btn {
   width: 100%;
+  max-width: 200px;
   padding: 10px 20px;
   border-radius: 999px;
   border: none;
-  background: #111827;
+  background: var(--primary);
   color: #fff;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s ease;
-  background: var(--primary);
 }
 
 .btn:hover {

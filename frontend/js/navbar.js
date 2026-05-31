@@ -46,6 +46,7 @@ async function loadNavbar(mode = "full") {
       <button id="userBtn">${user.full_name}</button>
       <div id="dropdownMenu" class="dropdown-menu">
         ${adminLink}
+        <a href="/static/profile.html" id="profileBtn">Profile</a>
         <a href="#" id="logoutBtn">Logout</a>
       </div>
     </div>
@@ -55,6 +56,7 @@ async function loadNavbar(mode = "full") {
   const dropdown = userNav.querySelector("#dropdownMenu");
   const logoutBtn = userNav.querySelector("#logoutBtn");
   const adminBtn = userNav.querySelector("#adminBtn");
+  const profileBtn = userNav.querySelector("#profileBtn");
 
   userBtn?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -70,6 +72,11 @@ async function loadNavbar(mode = "full") {
   adminBtn?.addEventListener("click", (e) => {
     e.preventDefault();
     window.location.href = "/static/admin-users.html";
+  });
+
+  profileBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.href = "/static/profile.html";
   });
 
   document.addEventListener("click", () => {
