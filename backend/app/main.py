@@ -263,12 +263,12 @@ async def predict_batch(
         for _,row in df.iterrows()
     ]
     db.add_all(db_transactions)
-    db.flush()
+    db.commit()
 
     # loop through the predictions and link them to the transactions we just saved
-    db_predictions = [
-        db_models.PredictionResult(
-            transaction_id=db_transactions[i].id,
+    for tx, res in zip(db_transactions, results):
+        db_pred = db_models.PredictionResult(
+            transaction_id=tx.id,
             prediction=1 if res["is_fraud"] else 0,
             label="fraud" if res["is_fraud"] else "not_fraud",
             probability=res["fraud_probability"],
@@ -276,9 +276,9 @@ async def predict_batch(
             model_version=model_loader.model_version,
             threshold=model_loader.threshold
         )
-        for i, res in enumerate(results)
-    ]
-    db.add_all(db_predictions)
+        db.add(db_pred)
+    
+    db.commit()
 
     formatted_results= [
         {

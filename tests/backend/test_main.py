@@ -22,6 +22,16 @@ class FakeDB:
 
         self.added.append(item)
 
+    def add_all(self, items):
+        for item in items:
+            self.add(item)
+
+    def flush(self):
+        for item in self.added:
+            if getattr(item, "id", None)is None:
+                item.id = self._next_id
+                self._next_id += 1
+
     def commit(self):
         self.commits += 1
 
