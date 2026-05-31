@@ -21,8 +21,20 @@ document.addEventListener("click", (e) => {
   loadTransactions();
 });
 
+function getUserIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("user_id");
+}
+
 async function loadTransactions() {
-  let url = "/transactions";
+  const userId = getUserIdFromUrl();
+  let url;
+
+  if (userId) {
+    url = `/admin/transactions/user?user_id=${userId}`;
+  } else {
+    url = "/transactions";
+  }
   const params = [];
 
   if (filters.type) params.push(`type=${filters.type}`);
@@ -32,10 +44,9 @@ async function loadTransactions() {
 
   const token = localStorage.getItem("token");
 
-  const res = await fetch(
-    url,{
-    headers: {"Authorization": `Bearer ${token}`,},
-    });
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   const data = await res.json();
 
   const tbody = document.getElementById("transactionsBody");

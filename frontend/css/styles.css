@@ -208,6 +208,14 @@ nav li {
   transform: translateY(-1px);
 }
 
+.view-btn {
+  padding: 2px 4px;
+  font-size: 11px;
+  border-radius: 3px;
+  background: #4a90e2;
+  color: white;
+}
+
 #singleForm {
   display: grid;
   grid-template-columns: 1fr;
@@ -300,6 +308,11 @@ input[type="file"] {
 
 .data-table tbody tr:last-child {
   border-bottom: none;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  text-align: center;
 }
 
 .grid-3 {
