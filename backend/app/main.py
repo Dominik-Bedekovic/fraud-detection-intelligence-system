@@ -18,9 +18,11 @@ from backend.app import models as db_models
 from typing import Optional
 from sqlalchemy.orm import joinedload
 from fastapi import Query
+from backend.app.profiling import Timer, setup_profiling
 
 app = FastAPI()
 
+setup_profiling(app)
 #mount /auth endpoints
 app.include_router(router)
 
@@ -191,38 +193,47 @@ def predict(
     db: Session = Depends(get_db),
     user=Depends(get_current_user)
     ):
+
+    timer = Timer()
+
     transaction_data = tx.model_dump() # converts pydantic object to python dictionary
     transaction_data["step"] = 1
-    result = prediction_service.predict_fraud(transaction_data)
 
+#MODEL TIMER
+    with timer.time("model"):
+        result = prediction_service.predict_fraud(transaction_data)
+    #DB WRITE TIMER
+    with timer.time("db"):
     # save transaction linked to atuhenticated user to db
-    db_tx = db_models.Transaction(
-        user_id=user["user_id"],
-        type=tx.type,
-        amount=tx.amount,
-        oldbalanceOrg=tx.oldbalanceOrg,
-        newbalanceOrig=tx.newbalanceOrig,
-        oldbalanceDest=tx.oldbalanceDest,
-        newbalanceDest=tx.newbalanceDest,
-        step=1,
-        source="single"
-    )
-    db.add(db_tx)
-    db.commit()
-    db.refresh(db_tx)
+        db_tx = db_models.Transaction(
+            user_id=user["user_id"],
+            type=tx.type,
+            amount=tx.amount,
+            oldbalanceOrg=tx.oldbalanceOrg,
+            newbalanceOrig=tx.newbalanceOrig,
+            oldbalanceDest=tx.oldbalanceDest,
+            newbalanceDest=tx.newbalanceDest,
+            step=1,
+            source="single"
+        )
+        db.add(db_tx)
+        db.commit()
+        db.refresh(db_tx)
 
     # save the prediction result too
-    db_pred = db_models.PredictionResult(
-        transaction_id=db_tx.id,
-        prediction=1 if result["is_fraud"] else 0,
-        label="fraud" if result["is_fraud"] else "not_fraud",
-        probability=result["fraud_probability"],
-        model_name=model_loader.model_name,
-        model_version=model_loader.model_version,
-        threshold=model_loader.threshold
-    )
-    db.add(db_pred)
-    db.commit()
+        db_pred = db_models.PredictionResult(
+            transaction_id=db_tx.id,
+            prediction=1 if result["is_fraud"] else 0,
+            label="fraud" if result["is_fraud"] else "not_fraud",
+            probability=result["fraud_probability"],
+            model_name=model_loader.model_name,
+            model_version=model_loader.model_version,
+            threshold=model_loader.threshold
+        )
+        db.add(db_pred)
+        db.commit()
+
+    timer.log("/predict")
 
     return {
         "prediction": 1 if result["is_fraud"] else 0,
@@ -237,56 +248,67 @@ async def predict_batch(
     db: Session= Depends(get_db),
     user=Depends(get_current_user)
 ):
+    #csv read timer
+    timer = Timer()
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Invalid file format. Please upload a CSV file.")
+    with timer.time("csv_read"):
+        contents = await file.read()
+        try:
+            df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Error reading CSV file: {e}")
 
-    contents = await file.read()
-    try:
-        df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error reading CSV file: {e}")
+    with timer.time("model"):
+        results = prediction_service.predict_fraud_batch(df)
 
-    results = prediction_service.predict_fraud_batch(df)
+    with timer.time("db"):
+        #build all transaction objects in memory
+        db_transactions = [
+            db_models.Transaction(
+                user_id=user["user_id"],
+                type=str(row.get("type", "UNKNOWN")),
+                amount=float(row.get("amount", 0.0)),
+                oldbalanceOrg=float(row.get("oldbalanceOrg", 0.0)),
+                newbalanceOrig=float(row.get("newbalanceOrig", 0.0)),
+                oldbalanceDest=float(row.get("oldbalanceDest", 0.0)),
+                newbalanceDest=float(row.get("newbalanceDest", 0.0)),
+                step=int(row.get("step", 1)),
+                source="batch"
+            )
+            for _, row in df.iterrows()
+        ]
+        #Bulk insert transactions
+        db.add_all(db_transactions)
+        db.flush()
 
-    db_transactions = []
-    for index, row in df.iterrows():
-        db_tx = db_models.Transaction(
-            user_id=user["user_id"],
-            type=str(row.get("type", "UNKNOWN")),
-            amount=float(row.get("amount", 0.0)),
-            oldbalanceOrg=float(row.get("oldbalanceOrg", 0.0)),
-            newbalanceOrig=float(row.get("newbalanceOrig", 0.0)),
-            oldbalanceDest=float(row.get("oldbalanceDest", 0.0)),
-            newbalanceDest=float(row.get("newbalanceDest", 0.0)),
-            step=int(row.get("step", 1)),
-            source="batch"
-        )
-        db.add(db_tx)
-        db_transactions.append(db_tx)
+        db_predictions = [
+            db_models.PredictionResult(
+                transaction_id=db_transactions[i].id,
+                prediction=1 if res["is_fraud"] else 0,
+                label="fraud" if res["is_fraud"] else "not_fraud",
+                probability=res["fraud_probability"],
+                model_name=model_loader.model_name,
+                model_version=model_loader.model_version,
+                threshold=model_loader.threshold
+                )
+                for i, res in enumerate(results)
+            ]
+        
+        db.add_all(db_predictions)
 
-    db.commit()
+        db.commit()
 
-    formatted_results = []
-    # loop through the predictions and link them to the transactions we just saved
-    for i, res in enumerate(results):
-        db_pred = db_models.PredictionResult(
-            transaction_id=db_transactions[i].id,
-            prediction=1 if res["is_fraud"] else 0,
-            label="fraud" if res["is_fraud"] else "not_fraud",
-            probability=res["fraud_probability"],
-            model_name=model_loader.model_name,
-            model_version=model_loader.model_version,
-            threshold=model_loader.threshold
-        )
-        db.add(db_pred)
+        formatted_results= [
+            {
+                "prediction": 1 if res["is_fraud"] else 0,
+                "label": "fraud" if res["is_fraud"] else "not_fraud",
+                "probability": res["fraud_probability"]
+            }
+            for res in results
+        ]
 
-        formatted_results.append({
-            "prediction": 1 if res["is_fraud"] else 0,
-            "label": "fraud" if res["is_fraud"] else "not_fraud",
-            "probability": res["fraud_probability"]
-        })
-
-    db.commit()
+    timer.log("/predict/batch")
 
     return {"results": formatted_results}
 
