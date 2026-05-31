@@ -85,22 +85,20 @@ class PredictionService:
     def __init__(self, loader: ModelLoader):
         self.loader = loader
 
-    def predict_fraud(self, transaction_data: dict) -> dict:
-        probability = self.loader.predict(transaction_data)
+    def _format_prediction(self, probability: float) -> dict:
+        """Centralized helper method to format predictions and evaluate thresholds."""
         return {
             "fraud_probability": round(float(probability) * 100, 2),
             "is_fraud": bool(probability >= self.loader.threshold),
         }
 
+    def predict_fraud(self, transaction_data: dict) -> dict:
+        probability = self.loader.predict(transaction_data)
+        return self._format_prediction(probability)
+
     def predict_fraud_batch(self, df: pd.DataFrame) -> list:
         probabilities = self.loader.predict_batch(df)
-        results = []
-        for prob in probabilities:
-            results.append({
-                "fraud_probability": round(float(prob) * 100, 2),
-                "is_fraud": bool(prob >= self.loader.threshold)
-            })
-        return results
+        return [self._format_prediction(prob) for prob in probabilities]
 
 model_path = BASE_DIR / "model" / "fraud_pipeline.joblib"
 model_loader = ModelLoader(model_path)
