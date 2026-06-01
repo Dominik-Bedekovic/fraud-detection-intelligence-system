@@ -22,6 +22,16 @@ class FakeDB:
 
         self.added.append(item)
 
+    def add_all(self, items):
+        for item in items:
+            self.add(item)
+
+    def flush(self):
+        for item in self.added:
+            if getattr(item, "id", None)is None:
+                item.id = self._next_id
+                self._next_id += 1
+
     def commit(self):
         self.commits += 1
 
@@ -179,7 +189,7 @@ def test_predict_batch_returns_results_and_stores_batch_transactions(monkeypatch
         item for item in fake_db.added if isinstance(item, db_models.PredictionResult)
     ]
 
-    assert fake_db.commits == 2
+    assert fake_db.commits == 1
     assert len(stored_transactions) == 2
     assert len(stored_predictions) == 2
 
