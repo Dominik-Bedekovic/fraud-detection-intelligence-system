@@ -189,7 +189,7 @@ def test_predict_batch_returns_results_and_stores_batch_transactions(monkeypatch
         item for item in fake_db.added if isinstance(item, db_models.PredictionResult)
     ]
 
-    assert fake_db.commits == 2
+    assert fake_db.commits == 1
     assert len(stored_transactions) == 2
     assert len(stored_predictions) == 2
 

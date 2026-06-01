@@ -18,6 +18,7 @@ from backend.app import models as db_models
 from typing import Optional
 from sqlalchemy.orm import joinedload
 from fastapi import Query
+from sqlalchemy import func
 
 app = FastAPI()
 
@@ -263,21 +264,24 @@ async def predict_batch(
         for _,row in df.iterrows()
     ]
     db.add_all(db_transactions)
-    db.commit()
+    db.flush()
 
     # loop through the predictions and link them to the transactions we just saved
-    for tx, res in zip(db_transactions, results):
-        db_pred = db_models.PredictionResult(
-            transaction_id=tx.id,
-            prediction=1 if res["is_fraud"] else 0,
-            label="fraud" if res["is_fraud"] else "not_fraud",
-            probability=res["fraud_probability"],
-            model_name=model_loader.model_name,
-            model_version=model_loader.model_version,
-            threshold=model_loader.threshold
-        )
-        db.add(db_pred)
-    
+    db_predictions = [
+            db_models.PredictionResult(
+                transaction_id=db_transactions[i].id,
+                prediction=1 if res["is_fraud"] else 0,
+                label="fraud" if res["is_fraud"] else "not_fraud",
+                probability=res["fraud_probability"],
+                model_name=model_loader.model_name,
+                model_version=model_loader.model_version,
+                threshold=model_loader.threshold
+                )
+                for i, res in enumerate(results)
+            ]
+        
+    db.add_all(db_predictions)
+
     db.commit()
 
     formatted_results= [
@@ -287,7 +291,7 @@ async def predict_batch(
             "probability": res["fraud_probability"]
         }
         for res in results
-        ]
+    ]
 
     return {"results": formatted_results}
 
@@ -384,30 +388,41 @@ def dashboardStat(
     user=Depends(get_current_user)
     ):
     
-    transactions = db.query(db_models.Transaction).filter(
-        db_models.Transaction.user_id == user["user_id"]
-    ).all()
 
-    fraud_transactions = 0
+    total_transactions = (
+        db.query(func.count(db_models.Transaction.id))
+        .filter(db_models.Transaction.user_id == user["user_id"])
+        .scalar()
+        )
 
-    total_transactions = len(transactions)
+
+    fraud_transactions = (
+        db.query(func.count(db_models.Transaction.id))
+        .join(
+            db_models.PredictionResult,
+            db_models.Transaction.id == db_models.PredictionResult.transaction_id
+        )
+        .filter(
+            db_models.Transaction.user_id == user["user_id"],
+            db_models.PredictionResult.prediction == 1
+        )
+        .scalar()
+    )
 
     #Get number of transactions that are fraudulent
-    for tx in transactions:
-        if tx.prediction_result and tx.prediction_result.prediction == 1:
-            fraud_transactions += 1
-
-    fraud_rate = 0
-
+    fraud_rate = (
+        (fraud_transactions / total_transactions) * 100
     #Get the comparison value of fradulent vs non-fradulent transactions
-    if total_transactions > 0:
-        fraud_rate = (fraud_transactions / total_transactions) * 100
+        if total_transactions > 0
+        else 0
+    )
 
     return {
         "total_transactions": total_transactions,
         "fraud_transactions": fraud_transactions,
         "fraud_rate": round(fraud_rate, 2)
     }
+
 
 #Endpoint for the dashboard recent transactions table
 @app.get("/transactions/recent")
