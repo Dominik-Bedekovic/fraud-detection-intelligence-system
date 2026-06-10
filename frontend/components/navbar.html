@@ -7,3 +7,18 @@
     <li id="userNav"><a href="/static/login.html">Login</a></li>
   </ul>
 </nav>
+
+<script>
+  window.addEventListener("scroll", () => {
+    const nav = document.querySelector("nav");
+    if (!nav) return;
+
+    if (window.scrollY > 10) {
+      nav.style.padding = "0.5rem 1rem";
+      nav.style.background = "rgba(0, 0, 0, 0.9)";
+    } else {
+      nav.style.padding = "0.8rem 1rem";
+      nav.style.background = "rgba(0, 0, 0, 0.75)";
+    }
+  });
+</script>
