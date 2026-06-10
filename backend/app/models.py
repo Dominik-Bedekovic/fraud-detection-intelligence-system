@@ -38,6 +38,9 @@ class User(Base):
         nullable=False,
     )
 
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expiry = Column(DateTime, nullable=True)
+
     role = relationship("Role", back_populates="users")
     transactions = relationship("Transaction", back_populates="user")
 

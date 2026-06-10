@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
-from backend.app.auth import router,get_current_user,require_admin,require_analyst_or_admin
+from backend.app.auth import router,get_current_user,require_admin,require_analyst_or_admin, hash_password, bcrypt_context
 from backend.app.models import User
 from backend.app import models as db_models
 from typing import Annotated
@@ -19,6 +19,8 @@ from typing import Optional
 from sqlalchemy.orm import joinedload
 from fastapi import Query
 from sqlalchemy import func
+from datetime import datetime, timedelta
+import uuid
 
 app = FastAPI()
 
@@ -43,6 +45,15 @@ class Transaction(BaseModel):
     newbalanceOrig: float
     oldbalanceDest: float
     newbalanceDest: float
+
+#Token and new password model for resetting the password
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+#forgot password model which contains user's email for password reset
+class ForgotPasswordRequest(BaseModel):
+    email: str
 
 # loads trained fraud model once during application startup
 class ModelLoader:
@@ -145,6 +156,84 @@ def me(
         "full_name": db_user.full_name,
         "role_id": db_user.role_id,
         "role_name": role.name if role else "unknown"
+    }
+
+#endpoint for the forgot password site
+@app.post("/auth/forgot-password")
+def forgot_password(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    #request for user's email
+    user = (
+        db.query(User)
+        .filter(User.email == request.email)
+        .first()
+    )
+
+    #error if not
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    #generate a reset token
+    token = str(uuid.uuid4())
+
+    #set expiry for the token
+    user.reset_token = token
+    user.reset_token_expiry = (
+        datetime.utcnow() + timedelta(hours=1)
+    )
+
+    db.commit()
+
+    return {
+        "reset_link":
+        f"/static/reset-password.html?token={token}"
+    }
+
+#endpoint for resetting the password if it's forgotten
+@app.post("/auth/reset-password")
+def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db)
+):
+    #get user token
+    user = (
+        db.query(User)
+        .filter(User.reset_token == request.token)
+        .first()
+    )
+
+    #if not error
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid token"
+        )
+
+    #generated token has an expiry timer
+    if (
+        user.reset_token_expiry
+        and user.reset_token_expiry < datetime.utcnow()
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Token expired"
+        )
+
+    #new password
+    user.password_hash = bcrypt_context.hash(request.new_password)
+
+    user.reset_token = None
+    user.reset_token_expiry = None
+
+    db.commit()
+
+    return {
+        "message": "Password updated successfully"
     }
 
 #lists all users, only for admins
