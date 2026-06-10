@@ -1,14 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const btn = document.getElementById("forgotPassword");
+  const form = document.getElementById("forgotForm");
 
-  if (!btn) return;
-
-  btn.addEventListener("click", async (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const email = prompt("Enter your email:");
-
-    if (!email) return;
+    const email = document.getElementById("email").value;
 
     const res = await fetch("/auth/forgot-password", {
       method: "POST",
@@ -20,11 +16,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const data = await res.json();
 
+    console.log(data);
+
     if (!res.ok) {
       alert(data.detail || "Error");
       return;
     }
 
-    window.location.href = `/static/reset-password.html?email=${encodeURIComponent(email)}`;
+    alert("Password reset request submitted.");
+
+    if (data.reset_link) {
+      window.location.href = data.reset_link;
+    }
   });
 });

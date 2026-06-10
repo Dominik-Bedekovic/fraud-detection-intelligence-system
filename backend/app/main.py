@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.app.database import get_db
-from backend.app.auth import router,get_current_user,require_admin,require_analyst_or_admin
+from backend.app.auth import router,get_current_user,require_admin,require_analyst_or_admin, hash_password, bcrypt_context
 from backend.app.models import User
 from backend.app import models as db_models
 from typing import Annotated
@@ -225,9 +225,7 @@ def reset_password(
         )
 
     #new password
-    user.password_hash = hash_password(
-        request.new_password
-    )
+    user.password_hash = bcrypt_context.hash(request.new_password)
 
     user.reset_token = None
     user.reset_token_expiry = None
