@@ -56,5 +56,28 @@
     <script src="/static/js/pie-chart.js"></script>
     <script src="/static/js/trend-chart.js"></script>
     <script src="/static/js/recent-transactions.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        document.querySelector(".container").classList.add("page-enter");
+
+        const kpis = document.querySelectorAll(".kpi-card");
+
+        kpis.forEach((card, i) => {
+          card.style.animationDelay = `${i * 0.12}s`;
+        });
+
+        const cards = document.querySelectorAll(".card");
+
+        cards.forEach((card, i) => {
+          card.style.animationDelay = `${0.2 + i * 0.15}s`;
+        });
+
+        const table = document.querySelector(".data-table");
+        if (table) {
+          table.style.animationDelay = "0.6s";
+        }
+      });
+    </script>
   </body>
 </html>
